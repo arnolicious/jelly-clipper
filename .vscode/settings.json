@@ -1,0 +1,6 @@
+{
+	"workbench.editor.customLabels.enabled": true,
+	"workbench.editor.customLabels.patterns": {
+		"**/+*": "${dirname} (${filename}.${extname})"
+	}
+}
