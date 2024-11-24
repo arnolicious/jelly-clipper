@@ -2,6 +2,10 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { validateSetup } from '$lib/server/db/setup';
 
+/**
+ * Turns out this was not needed, since Jellyfin does not block CORS requests
+ */
+
 export const GET: RequestHandler = async ({ params }) => {
 	const validatedSetup = await validateSetup();
 
@@ -12,7 +16,6 @@ export const GET: RequestHandler = async ({ params }) => {
 	const jellyfinAddress = validatedSetup.serverAddress;
 
 	const jellyfinAvatarUrl = `${jellyfinAddress}UserImage?UserId=${params.userId}`;
-	console.log('Fetching image from', jellyfinAvatarUrl);
 
 	// Download the image
 	const response = await fetch(jellyfinAvatarUrl);

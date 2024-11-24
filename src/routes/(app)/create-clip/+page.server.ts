@@ -14,5 +14,15 @@ export const load: PageServerLoad = async (event) => {
 		redirect(302, '/login');
 	}
 
-	redirect(302, '/create-clip');
+	// Fetch jellyfin info stuff
+	// const mediaFolders = await getMediaFolders(
+	// 	validatedSetup.serverAddress,
+	// 	event.locals.user.jellyfinAccessToken
+	// );
+
+	return {
+		// user: event.locals.user,
+		// serverAddress: validatedSetup.serverAddress
+		// mediaFolders: mediaFolders.Items ?? []
+	};
 };
