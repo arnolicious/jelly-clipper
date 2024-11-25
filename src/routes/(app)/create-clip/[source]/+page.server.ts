@@ -5,9 +5,8 @@ import { getItemInfo, getVideoStream } from '$lib/server/jellyfin/jellyfin.svelt
 import type { SourceInfo } from './types';
 import { createWriteStream, statSync } from 'node:fs';
 import { finished } from 'stream/promises';
-
-// export const ssr = false;
-// export const prerender = false;
+import { ASSETS_ORIGINALS_DIR } from '$lib/constants';
+import { ensureStaticFoldersExist } from '$lib/server/server-utils';
 
 export const load: PageServerLoad = async (event) => {
 	const validatedSetup = await validateSetup();
@@ -22,6 +21,8 @@ export const load: PageServerLoad = async (event) => {
 	let sourceInfo: SourceInfo;
 
 	const decoded = decodeURIComponent(event.params.source);
+
+	ensureStaticFoldersExist();
 
 	if (decoded.includes('/')) {
 		// Should be of format: https://jellyfin.domain.test/Items/:id/Download?api_key=:key
@@ -50,13 +51,13 @@ export const load: PageServerLoad = async (event) => {
 		user.jellyfinAccessToken,
 		sourceInfo.sourceId
 	).then((response) => {
-		console.log('sourceInfoPromise', response.Name);
+		// console.log('sourceInfoPromise', response.Name);
 		return response;
 	});
 
 	// Check if file already exists
 	try {
-		const fileInfo = statSync(`files/original/${sourceInfo.sourceId}.mp4`);
+		const fileInfo = statSync(`${ASSETS_ORIGINALS_DIR}/${sourceInfo.sourceId}.mp4`);
 		return {
 			user,
 			serverAddress: jellyfinAddress,
@@ -67,11 +68,10 @@ export const load: PageServerLoad = async (event) => {
 				...fileInfo
 			}
 		};
-	} catch (e) {
+	} catch (_e) {
 		// File does not exist
 	}
 
-	console.log('Downloading video stream...', sourceInfo);
 	// Download the media file
 	const response = await getVideoStream(
 		jellyfinAddress,
@@ -80,20 +80,15 @@ export const load: PageServerLoad = async (event) => {
 	);
 
 	console.log('Writing video stream to file...');
-	const fileStream = createWriteStream(`files/original/${sourceInfo.sourceId}.mp4`);
-	// await finished(response.data.pipe(fileStream));
+	const fileStream = createWriteStream(`${ASSETS_ORIGINALS_DIR}/${sourceInfo.sourceId}.mp4`);
 
 	const fileInfoPromise = finished(response.data.pipe(fileStream)).then(() => {
 		return {
 			name: sourceInfo.sourceId,
 			extension: 'mp4',
-			...statSync(`files/original/${sourceInfo.sourceId}.mp4`)
+			...statSync(`${ASSETS_ORIGINALS_DIR}/${sourceInfo.sourceId}.mp4`)
 		};
 	});
-	// console.log('Finished writing video stream to file.');
-
-	// const fileInfo = statSync(`files/original/${sourceInfo.sourceId}.mp4`);
-
 	return {
 		user,
 		serverAddress: jellyfinAddress,

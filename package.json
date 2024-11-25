@@ -47,8 +47,10 @@
 	},
 	"dependencies": {
 		"@jellyfin/sdk": "0.10.0",
+		"@videojs/themes": "^1.0.1",
 		"better-sqlite3": "^11.5.0",
 		"drizzle-orm": "^0.33.0",
-		"video.js": "^8.19.1"
+		"video.js": "^8.19.1",
+		"vidstack": "^1.12.12"
 	}
 }

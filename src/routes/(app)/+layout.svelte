@@ -13,7 +13,7 @@
 	let { children, data }: Props = $props();
 </script>
 
-<Card.Root class="h-3/4 w-3/4">
+<Card.Root class="h-4/5 w-10/12 flex flex-col">
 	<Card.Header class="flex flex-row gap-2 items-center">
 		<Avatar.Root>
 			<Avatar.Image
@@ -31,8 +31,8 @@
 			</Card.Description>
 		</div>
 	</Card.Header>
-	<Separator class="mt-6 mb-6" />
-	<Card.Content class="flex justify-center items-center">
+	<Separator class="mt-6" />
+	<Card.Content class="flex flex-col justify-center items-center h-full pt-6">
 		{@render children()}
 	</Card.Content>
 </Card.Root>

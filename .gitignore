@@ -23,5 +23,5 @@ vite.config.ts.timestamp-*
 # SQLite
 *.db
 
-# Media files
-files/**
+# Static files
+/static/videos/**

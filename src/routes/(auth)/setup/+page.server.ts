@@ -1,6 +1,6 @@
 import type { Actions, PageServerLoad } from './$types.js';
 import { message, superValidate } from 'sveltekit-superforms';
-import { setupFormSchema, setupLoginFormSchema } from './schema';
+import { setupFormSchema } from './schema';
 import { zod } from 'sveltekit-superforms/adapters';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db/index.js';
@@ -8,6 +8,7 @@ import { SETTING_KEYS, settings, users } from '$lib/server/db/schema.js';
 import { validateSetup } from '$lib/server/db/setup.js';
 import { createUserSession, SESSION_EXPIRY } from '$lib/server/db/sessions.js';
 import { jellyfin } from '$lib/server/jellyfin/jellyfin.svelte.js';
+import { loginFormSchema } from '../login/schema.js';
 
 export const load: PageServerLoad = async () => {
 	const validatedSetup = await validateSetup();
@@ -18,7 +19,7 @@ export const load: PageServerLoad = async () => {
 
 	return {
 		setupForm: await superValidate(zod(setupFormSchema)),
-		setupLoginForm: await superValidate(zod(setupLoginFormSchema))
+		setupLoginForm: await superValidate(zod(loginFormSchema))
 	};
 };
 
@@ -63,7 +64,7 @@ export const actions: Actions = {
 	},
 	login: async ({ request, cookies }) => {
 		const formData = await request.formData();
-		const form = await superValidate(formData, zod(setupLoginFormSchema));
+		const form = await superValidate(formData, zod(loginFormSchema));
 		const serverUrl = formData.get('serverUrl')?.toString();
 
 		console.log('Logging in to Jellyfin server at', serverUrl);

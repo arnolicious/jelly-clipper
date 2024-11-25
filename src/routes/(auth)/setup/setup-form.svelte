@@ -3,12 +3,7 @@
 	import * as Form from '$lib/components/ui/form/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { toast } from 'svelte-sonner';
-	import {
-		setupFormSchema,
-		setupLoginFormSchema,
-		type SetupFormSchema,
-		type SetupLoginFormSchema
-	} from './schema';
+	import { setupFormSchema, type SetupFormSchema } from './schema';
 	import {
 		type SuperValidated,
 		type Infer,
@@ -19,13 +14,14 @@
 	import { goto } from '$app/navigation';
 	import { fade } from 'svelte/transition';
 	import type { ActionData } from './$types';
+	import { loginFormSchema, type LoginFormSchema } from '../login/schema';
 
 	type Props = {
 		setupForm: SuperValidated<Infer<SetupFormSchema>>;
-		setupLoginForm: SuperValidated<Infer<SetupLoginFormSchema>>;
+		loginForm: SuperValidated<Infer<LoginFormSchema>>;
 	};
 
-	let { setupForm, setupLoginForm }: Props = $props();
+	let { setupForm, loginForm: setupLoginForm }: Props = $props();
 
 	const jellyfinServerForm = superForm(setupForm, {
 		validators: zodClient(setupFormSchema),
@@ -46,7 +42,7 @@
 	});
 
 	const loginForm = superForm(setupLoginForm, {
-		validators: zodClient(setupLoginFormSchema),
+		validators: zodClient(loginFormSchema),
 		onSubmit: ({ formData, validators }) => {
 			if ($setupMessage?.status !== 'success' || !$setupMessage.data) {
 				validators(false);

@@ -14,6 +14,16 @@ export function getDisplayTitleFromItem(item: BaseItemDto) {
 	return item.Name;
 }
 
+export function getItemSize(item: BaseItemDto) {
+	if (item.MediaSources?.length) {
+		const size = item.MediaSources[0].Size;
+		if (!size) return null;
+		return `${(size / 1000000).toFixed(2)} MB`;
+	}
+
+	return null;
+}
+
 /**
  * From https://github.com/MattMorgis/async-stream-generator
  */
@@ -43,4 +53,13 @@ export function iteratorToStream(iterator) {
 			}
 		}
 	});
+}
+
+/**
+ * @ref https://emby.media/community/index.php?/topic/63357-runtimeticks-microseconds-milliseconds-or-nanoseconds/
+ * @param jellyfinTicks
+ * @returns Seconds
+ */
+export function ticksToSeconds(jellyfinTicks: number) {
+	return jellyfinTicks / 10000000;
 }

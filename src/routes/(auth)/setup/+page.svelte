@@ -9,4 +9,4 @@
 	let { data }: Props = $props();
 </script>
 
-<SetupForm setupForm={data.setupForm} setupLoginForm={data.setupLoginForm} />
+<SetupForm setupForm={data.setupForm} loginForm={data.setupLoginForm} />
