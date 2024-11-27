@@ -8,11 +8,14 @@
 
 	let sourceUrl = $state(paramSourceUrl ?? '');
 
+	let isNavigating = $derived($navigating !== null);
+
 	let href = $derived(
-		sourceUrl.length === 0 ? undefined : `/create-clip/${encodeURIComponent(sourceUrl)}`
+		sourceUrl.length === 0 || isNavigating
+			? undefined
+			: `/create-clip/${encodeURIComponent(sourceUrl)}`
 	);
 
-	let isNavigating = $derived($navigating !== null);
 	let buttonIsDisabled = $derived(isNavigating || sourceUrl.length === 0);
 </script>
 

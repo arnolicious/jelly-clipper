@@ -1,7 +1,6 @@
 import { Jellyfin, type JellyfinParameters } from '@jellyfin/sdk';
 import { getLibraryApi } from '@jellyfin/sdk/lib/utils/api/library-api';
 import { getVideosApi } from '@jellyfin/sdk/lib/utils/api/videos-api';
-import { getItemsApi } from '@jellyfin/sdk/lib/utils/api/items-api';
 import { getUserLibraryApi } from '@jellyfin/sdk/lib/utils/api/user-library-api';
 
 const JELLYFIN_SERVER_INFO: JellyfinParameters = {
