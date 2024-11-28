@@ -10,6 +10,10 @@
 	import { type MediaTimeChangeEvent } from 'vidstack';
 	import 'vidstack/bundle';
 	import type { MediaPlayerElement } from 'vidstack/elements';
+	import type { z } from 'zod';
+	import type { createClipBodySchema } from '../../../api/create-clip/[sourceId]/schema';
+	import { toast } from 'svelte-sonner';
+	import { goto } from '$app/navigation';
 
 	type Props = {
 		sourceId: string;
@@ -32,6 +36,8 @@
 	const videoRuntime = $derived(
 		sourceInfo.RunTimeTicks ? ticksToSeconds(sourceInfo.RunTimeTicks) : -1
 	);
+
+	let clipTitle = $state('');
 
 	let clipStartMin = $state<number>(0);
 	let clipEndMin = $state<number | null>(
@@ -57,10 +63,57 @@
 			setPlayerTime(clipStartTimeSeconds);
 		}
 	};
+
+	let isLoading = $state(false);
+
+	const onCreateClip = async () => {
+		if (!clipEndTimeSeconds) {
+			toast.error('Please set an end time for the clip');
+			return;
+		}
+
+		const sourceType =
+			sourceInfo.Type === 'Movie' ? 'movie' : sourceInfo.Type === 'Episode' ? 'show' : null;
+
+		if (!sourceType) {
+			toast.error('Unsupported source type');
+			return;
+		}
+
+		const body: z.infer<typeof createClipBodySchema> = {
+			start: clipStartTimeSeconds,
+			end: clipEndTimeSeconds,
+			title: clipTitle,
+			sourceInfo: {
+				sourceTitle: getDisplayTitleFromItem(sourceInfo) ?? 'Unknown',
+				sourceType
+			}
+		};
+
+		isLoading = true;
+		const createClipPromise = fetch(`/api/create-clip/${sourceId}`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify(body)
+		})
+			.then((res) => res.json().then((data) => goto(`/clip/${data.clipId}`)))
+			.finally(() => {
+				isLoading = false;
+			});
+
+		toast.promise(createClipPromise, {
+			loading: 'Creating clip...',
+			success: 'Clip created!',
+			error: 'Failed to create clip'
+		});
+	};
 </script>
 
 <!-- svelte-ignore a11y_media_has_caption -->
 <div class="flex flex-col w-full h-full max-h-[540px] max-w-[960px]">
+	<!-- svelte-ignore event_directive_deprecated -->
 	<media-player
 		bind:this={player}
 		title={getDisplayTitleFromItem(sourceInfo) ?? 'Unknown'}
@@ -82,3 +135,11 @@
 	-
 	<Input type="number" bind:value={clipEndMin} />
 </div>
+<Input class="w-1/2" required placeholder="Clip Title" bind:value={clipTitle} />
+<Button onclick={onCreateClip} disabled={isLoading || clipTitle === ''}>
+	{#if isLoading}
+		Loading...
+	{:else}
+		🎬 Create Clip!
+	{/if}
+</Button>

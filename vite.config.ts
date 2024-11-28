@@ -3,10 +3,5 @@ import { defineConfig } from 'vite';
 import { vite as vidstack } from 'vidstack/plugins';
 
 export default defineConfig({
-	plugins: [
-		vidstack({
-			include: /create-clip\/\[source\]\//
-		}),
-		sveltekit()
-	]
+	plugins: [vidstack(), sveltekit()]
 });

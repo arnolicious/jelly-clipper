@@ -50,10 +50,7 @@ export const load: PageServerLoad = async (event) => {
 		jellyfinAddress,
 		user.jellyfinAccessToken,
 		sourceInfo.sourceId
-	).then((response) => {
-		// console.log('sourceInfoPromise', response.Name);
-		return response;
-	});
+	);
 
 	// Check if file already exists
 	try {

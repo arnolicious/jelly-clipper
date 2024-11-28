@@ -19,16 +19,22 @@
 	let buttonIsDisabled = $derived(isNavigating || sourceUrl.length === 0);
 </script>
 
-<div class="flex flex-col w-1/2 justify-evenly gap-4">
-	<h1 class="text-2xl font-bold text-center">Create new clip!</h1>
-
-	<Label class="mt-4">Paste in the jellyfin url of the movie/show</Label>
-	<Input autofocus bind:value={sourceUrl} />
-	<Button data-sveltekit-preload-data="off" {href} disabled={buttonIsDisabled}>
-		{#if isNavigating}
-			Loading...
-		{:else}
-			Create Clip
-		{/if}
-	</Button>
+<div class="flex flex-col h-full w-1/2 justify-evenly gap-4">
+	<div class="flex flex-col gap-4">
+		<h1 class="text-2xl font-bold text-center">Welcome to Jelly-Clipper!</h1>
+		<h3 class="text-lg text-center">Create clips from your favorite movies and shows</h3>
+	</div>
+	<div class="flex flex-col gap-4">
+		<Label class="text-sm text-slate-400"
+			>Click on the 3 dots on the item in the library, then "Copy Stream URL" and paste in here</Label
+		>
+		<Input autofocus bind:value={sourceUrl} />
+		<Button data-sveltekit-preload-data="off" {href} disabled={buttonIsDisabled}>
+			{#if isNavigating}
+				Loading...
+			{:else}
+				Create Clip
+			{/if}
+		</Button>
+	</div>
 </div>

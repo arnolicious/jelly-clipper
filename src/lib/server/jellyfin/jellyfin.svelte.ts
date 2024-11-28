@@ -1,6 +1,7 @@
 import { Jellyfin, type JellyfinParameters } from '@jellyfin/sdk';
 import { getLibraryApi } from '@jellyfin/sdk/lib/utils/api/library-api';
 import { getVideosApi } from '@jellyfin/sdk/lib/utils/api/videos-api';
+import { getImageApi } from '@jellyfin/sdk/lib/utils/api/image-api';
 import { getUserLibraryApi } from '@jellyfin/sdk/lib/utils/api/user-library-api';
 
 const JELLYFIN_SERVER_INFO: JellyfinParameters = {
@@ -34,6 +35,14 @@ export async function getItemInfo(serverAddress: string, accessToken: string, it
 		itemId
 	});
 	return response.data;
+}
+
+export async function getItemImage(serverAddress: string, accessToken: string, itemId: string) {
+	const api = await getJellyfinApi(serverAddress, accessToken);
+	return getImageApi(api).getItemImage({
+		itemId,
+		imageType: 'Primary'
+	});
 }
 
 export async function getVideoStream(serverAddress: string, accessToken: string, itemId: string) {
