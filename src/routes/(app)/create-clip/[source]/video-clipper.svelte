@@ -14,6 +14,7 @@
 	import type { createClipBodySchema } from '../../../api/create-clip/[sourceId]/schema';
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
+	import TimelineClipper from './timeline-clipper.svelte';
 
 	type Props = {
 		sourceId: string;
@@ -130,6 +131,15 @@
 		<media-video-layout></media-video-layout>
 	</media-player>
 </div>
+<TimelineClipper
+	fullDurationSecs={videoRuntime}
+	onStartTimeChange={(e) => {
+		console.log('onStartTimeChange', e);
+	}}
+	onEndTimeChange={(e) => {
+		console.log('onEndTimeChange', e);
+	}}
+/>
 <div class="flex gap-2 mt-4 items-center">
 	<Input type="number" bind:value={clipStartMin} />
 	-
