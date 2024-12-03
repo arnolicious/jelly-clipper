@@ -170,7 +170,7 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="flex h-12 relative w-[960px] mb-4 mt-2 py-1 border-solid border rounded-lg border-primary"
+	class="flex h-12 relative w-full mb-4 py-1 border-solid border rounded-lg border-primary"
 	bind:this={sliderEl}
 >
 	<!-- Time segments -->

@@ -34,6 +34,7 @@
 		<div class="flex flex-col gap-8 justify-center items-center">
 			<span class="text-slate-400 italic">
 				Failed to download media from jellyfin, please try again later.
+				{error}
 			</span>
 		</div>
 	{/await}

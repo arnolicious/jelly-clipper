@@ -123,42 +123,41 @@
 </script>
 
 <!-- svelte-ignore a11y_media_has_caption -->
-<div class="flex flex-col w-full h-full max-h-[540px] max-w-[960px]">
-	<!-- svelte-ignore event_directive_deprecated -->
-	<media-player
-		bind:this={player}
-		title={getDisplayTitleFromItem(sourceInfo) ?? 'Unknown'}
-		streamType="on-demand"
-		muted={false}
-		load="visible"
-		duration={videoRuntime}
-		on:time-change={onTimeChange}
-	>
-		<div bind:this={triggerEl} style="visibility: none;"></div>
-		<!-- <media-poster src={sourceInfo.Image}></media-poster> -->
-		<media-provider>
-			<source src="/videos/originals/{sourceId}.mp4" type="video/mp4" />
-		</media-provider>
-		<media-video-layout></media-video-layout>
-	</media-player>
+<!-- svelte-ignore event_directive_deprecated -->
+<div class="w-full h-full flex flex-col justify-start items-center max-w-[900px]">
+	<div class="aspect-video">
+		<media-player
+			bind:this={player}
+			title={getDisplayTitleFromItem(sourceInfo) ?? 'Unknown'}
+			streamType="on-demand"
+			muted={false}
+			load="visible"
+			class=""
+			duration={videoRuntime}
+			on:time-change={onTimeChange}
+		>
+			<div bind:this={triggerEl} style="visibility: none;"></div>
+			<media-provider>
+				<source src="/videos/originals/{sourceId}.mp4" type="video/mp4" />
+			</media-provider>
+			<media-video-layout></media-video-layout>
+		</media-player>
+	</div>
+	<div class="flex gap-4 flex-col w-full items-center">
+		<TimelineClipper
+			fullDurationSecs={videoRuntime}
+			bind:clipStartSecs={clipStartTimeSeconds}
+			bind:clipEndSecs={clipEndTimeSeconds}
+			currentCursorPositionSecs={currentTime}
+			{isPaused}
+		/>
+		<Input class="w-full" required placeholder="Clip Title" autofocus bind:value={clipTitle} />
+		<Button onclick={onCreateClip} class="" disabled={isLoading || clipTitle === ''}>
+			{#if isLoading}
+				Loading...
+			{:else}
+				🎬 Create Clip!
+			{/if}
+		</Button>
+	</div>
 </div>
-<TimelineClipper
-	fullDurationSecs={videoRuntime}
-	bind:clipStartSecs={clipStartTimeSeconds}
-	bind:clipEndSecs={clipEndTimeSeconds}
-	currentCursorPositionSecs={currentTime}
-	{isPaused}
-/>
-<!-- <div class="flex gap-2 mt-4 items-center">
-	<Input type="number" bind:value={clipStartMin} />
-	-
-	<Input type="number" bind:value={clipEndMin} />
-</div> -->
-<Input class="w-1/2" required placeholder="Clip Title" autofocus bind:value={clipTitle} />
-<Button onclick={onCreateClip} class="" disabled={isLoading || clipTitle === ''}>
-	{#if isLoading}
-		Loading...
-	{:else}
-		🎬 Create Clip!
-	{/if}
-</Button>

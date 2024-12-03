@@ -95,7 +95,8 @@ export const actions: Actions = {
 		// Set the session cookie
 		cookies.set('sessionid', sessionId, {
 			path: '/',
-			maxAge: SESSION_EXPIRY
+			maxAge: SESSION_EXPIRY,
+			secure: false
 		});
 
 		return {

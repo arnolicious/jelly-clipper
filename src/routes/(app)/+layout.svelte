@@ -14,7 +14,7 @@
 	let { children, data }: Props = $props();
 </script>
 
-<Card.Root class="h-full w-full flex flex-col">
+<Card.Root class="flex-1 flex flex-col h-full">
 	<Card.Header class="flex flex-row gap-2 items-center justify-between relative">
 		<div class="absolute left-6 flex flex-row gap-2 items-center justify-between">
 			<Avatar.Root>
@@ -24,7 +24,7 @@
 				/>
 				<Avatar.Fallback>{data.user.jellyfinUserName.slice(0, 2)}</Avatar.Fallback>
 			</Avatar.Root>
-			<div class="flex flex-col">
+			<div class=" flex-col hidden md:flex">
 				<Card.Title>
 					{data.user.jellyfinUserName}
 				</Card.Title>
@@ -38,7 +38,7 @@
 		<span></span>
 	</Card.Header>
 	<Separator class="mt-6" />
-	<Card.Content class="flex flex-col justify-evenly items-center h-full pt-6">
+	<Card.Content class="flex flex-col justify-evenly items-center h-full">
 		{@render children()}
 	</Card.Content>
 </Card.Root>
