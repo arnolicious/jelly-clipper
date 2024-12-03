@@ -129,6 +129,7 @@
 		bind:this={player}
 		title={getDisplayTitleFromItem(sourceInfo) ?? 'Unknown'}
 		streamType="on-demand"
+		muted={false}
 		load="visible"
 		duration={videoRuntime}
 		on:time-change={onTimeChange}
@@ -153,8 +154,8 @@
 	-
 	<Input type="number" bind:value={clipEndMin} />
 </div> -->
-<Input class="w-1/2" required placeholder="Clip Title" bind:value={clipTitle} />
-<Button onclick={onCreateClip} disabled={isLoading || clipTitle === ''}>
+<Input class="w-1/2" required placeholder="Clip Title" autofocus bind:value={clipTitle} />
+<Button onclick={onCreateClip} class="" disabled={isLoading || clipTitle === ''}>
 	{#if isLoading}
 		Loading...
 	{:else}

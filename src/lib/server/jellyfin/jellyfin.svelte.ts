@@ -50,7 +50,8 @@ export async function getVideoStream(serverAddress: string, accessToken: string,
 	return getVideosApi(api).getVideoStream(
 		{
 			itemId,
-			container: 'mp4'
+			container: 'mp4',
+			audioCodec: 'aac'
 		},
 		{ responseType: 'stream' }
 	);
