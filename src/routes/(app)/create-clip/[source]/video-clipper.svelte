@@ -132,6 +132,7 @@
 			streamType="on-demand"
 			muted={false}
 			load="visible"
+			playsInline
 			class=""
 			duration={videoRuntime}
 			on:time-change={onTimeChange}
@@ -151,7 +152,7 @@
 			currentCursorPositionSecs={currentTime}
 			{isPaused}
 		/>
-		<Input class="w-full" required placeholder="Clip Title" autofocus bind:value={clipTitle} />
+		<Input class="w-full" required placeholder="Clip Title" bind:value={clipTitle} />
 		<Button onclick={onCreateClip} class="" disabled={isLoading || clipTitle === ''}>
 			{#if isLoading}
 				Loading...

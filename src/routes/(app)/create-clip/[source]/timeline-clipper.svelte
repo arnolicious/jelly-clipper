@@ -85,7 +85,8 @@
 	let endTime = $state(Math.min(fullDurationSecs, 30)); // Default range of 30 seconds
 	let draggingHandle: 'start' | 'end' | 'full' | null = $state(null);
 
-	let sliderEl = $state<HTMLDivElement | null>(null);
+	let timelineEl = $state<HTMLDivElement | null>(null);
+	let highlightEl = $state<HTMLDivElement | null>(null);
 
 	function onMouseDown(handle: 'start' | 'end' | 'full', event: MouseEvent) {
 		draggingHandle = handle;
@@ -93,8 +94,8 @@
 	}
 
 	const onMouseMove = $derived((event: MouseEvent) => {
-		if (!sliderEl || !draggingHandle) return;
-		const rect = sliderEl.getBoundingClientRect();
+		if (!timelineEl || !draggingHandle) return;
+		const rect = timelineEl.getBoundingClientRect();
 
 		const offsetX = event.clientX - rect.left;
 		const percentage = Math.min(Math.max(offsetX / rect.width, 0), 1);
@@ -121,8 +122,9 @@
 	}
 
 	const onTouchMove = $derived((event: TouchEvent) => {
-		if (!sliderEl || !draggingHandle) return;
-		const rect = sliderEl.getBoundingClientRect();
+		if (!timelineEl || !draggingHandle) return;
+		touchIsActive = true;
+		const rect = timelineEl.getBoundingClientRect();
 		const touch = event.touches[0];
 		const offsetX = touch.clientX - rect.left;
 		const percentage = Math.min(Math.max(offsetX / rect.width, 0), 1);
@@ -144,12 +146,15 @@
 	});
 
 	function onTouchEnd() {
+		touchIsActive = false;
 		draggingHandle = null;
 	}
 
 	function onMouseUp() {
 		draggingHandle = null;
 	}
+
+	let touchIsActive = $state(false);
 </script>
 
 <svelte:window
@@ -171,7 +176,7 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="flex h-12 relative w-full mb-4 py-1 border-solid border rounded-lg border-primary"
-	bind:this={sliderEl}
+	bind:this={timelineEl}
 >
 	<!-- Time segments -->
 	{#each timeSegments as segment, index (segment)}
@@ -188,6 +193,7 @@
 		style:right={`${100 - ((endTime - timelineStart) / (timelineEnd - timelineStart)) * 100}%`}
 		onmousedown={(event) => onMouseDown('full', event)}
 		ontouchstart={(event) => onTouchStart('full', event)}
+		class:isActive={touchIsActive}
 	></div>
 
 	<!-- Start handle -->
@@ -212,7 +218,7 @@
 
 	<!-- Tooltip -->
 	<div
-		class="absolute z-10 -bottom-14 bg-primary text-primary-foreground text-sm py-1 px-2 rounded shadow-md opacity-0 peer-active:opacity-100 peer-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center"
+		class="absolute z-10 -bottom-14 bg-primary text-primary-foreground text-sm py-1 px-2 rounded shadow-md opacity-0 peer-[.isActive]:opacity-100 peer-active:opacity-100 peer-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center"
 		style:left={`calc(${((startTime - timelineStart) / (timelineEnd - timelineStart)) * 100}% + ${((endTime - startTime) / (timelineEnd - timelineStart)) * 50}% - 2rem)`}
 	>
 		<div>{formatSecondsAsDuration(endTime - startTime)}</div>
@@ -239,7 +245,7 @@
 
 	<!-- Hover effect outline -->
 	<div
-		class="absolute top-0 bottom-0 ring-purple-500 peer-hover:ring peer-active:ring rounded-xl transition duration-100 pointer-events-none"
+		class="absolute top-0 bottom-0 ring-purple-500 peer-[.isActive]:ring peer-hover:ring peer-active:ring rounded-xl transition duration-100 pointer-events-none"
 		style:left={`calc(${((startTime - timelineStart) / (timelineEnd - timelineStart)) * 100}% - 1rem)`}
 		style:right={`calc(${100 - ((endTime - timelineStart) / (timelineEnd - timelineStart)) * 100}% - 1rem)`}
 	></div>
