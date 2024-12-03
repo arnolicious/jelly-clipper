@@ -40,13 +40,8 @@
 
 	let clipTitle = $state('');
 
-	let clipStartMin = $state<number>(0);
-	let clipEndMin = $state<number | null>(
-		sourceInfo.RunTimeTicks ? ticksToSeconds(sourceInfo.RunTimeTicks) / 60 : null
-	);
-
-	let clipStartTimeSeconds = $derived(clipStartMin * 60);
-	let clipEndTimeSeconds = $derived(clipEndMin ? clipEndMin * 60 : null);
+	let clipStartTimeSeconds = $state(0);
+	let clipEndTimeSeconds = $state(30);
 
 	const setPlayerTime = (timeInSeconds: number) => {
 		if (!player) return;
@@ -110,6 +105,21 @@
 			error: 'Failed to create clip'
 		});
 	};
+
+	$effect(() => {
+		if (!player) return;
+		player.subscribe((e) => {
+			if (e.paused !== isPaused) {
+				isPaused = e.paused;
+			}
+			if (e.currentTime !== currentTime) {
+				currentTime = e.currentTime;
+			}
+		});
+	});
+
+	let currentTime = $state<number>(0);
+	let isPaused = $state(true);
 </script>
 
 <!-- svelte-ignore a11y_media_has_caption -->
@@ -133,18 +143,16 @@
 </div>
 <TimelineClipper
 	fullDurationSecs={videoRuntime}
-	onStartTimeChange={(e) => {
-		console.log('onStartTimeChange', e);
-	}}
-	onEndTimeChange={(e) => {
-		console.log('onEndTimeChange', e);
-	}}
+	bind:clipStartSecs={clipStartTimeSeconds}
+	bind:clipEndSecs={clipEndTimeSeconds}
+	currentCursorPositionSecs={currentTime}
+	{isPaused}
 />
-<div class="flex gap-2 mt-4 items-center">
+<!-- <div class="flex gap-2 mt-4 items-center">
 	<Input type="number" bind:value={clipStartMin} />
 	-
 	<Input type="number" bind:value={clipEndMin} />
-</div>
+</div> -->
 <Input class="w-1/2" required placeholder="Clip Title" bind:value={clipTitle} />
 <Button onclick={onCreateClip} disabled={isLoading || clipTitle === ''}>
 	{#if isLoading}

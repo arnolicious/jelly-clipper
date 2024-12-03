@@ -1,5 +1,6 @@
 import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 import { type ClassValue, clsx } from 'clsx';
+import { formatDuration, intervalToDuration, type Locale } from 'date-fns';
 import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
@@ -62,4 +63,25 @@ export function iteratorToStream(iterator) {
  */
 export function ticksToSeconds(jellyfinTicks: number) {
 	return jellyfinTicks / 10000000;
+}
+
+export function formatSecondsAsDuration(seconds: number) {
+	const formatDistanceLocale = {
+		xSeconds: '{{count}} s',
+		xMinutes: '{{count}} min',
+		xHours: '{{count}} h'
+	} as const;
+	const shortEnLocale: Pick<Locale, 'formatDistance'> = {
+		// @ts-expect-error - We're not using the full locale
+		formatDistance: (token, count) => formatDistanceLocale[token].replace('{{count}}', count)
+	};
+
+	return formatDuration(intervalToDuration({ start: 0, end: Math.floor(seconds) * 1000 }), {
+		format: ['minutes', 'seconds'],
+		locale: shortEnLocale
+	});
+}
+
+export function formatTimestamp(seconds: number) {
+	return new Date(seconds * 1000).toISOString().slice(14, 19);
 }

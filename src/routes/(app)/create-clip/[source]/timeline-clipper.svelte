@@ -1,11 +1,23 @@
 <script lang="ts">
+	import { formatSecondsAsDuration, formatTimestamp } from '$lib/utils';
+	import { formatDuration, intervalToDuration } from 'date-fns';
+	import { blur, fade } from 'svelte/transition';
+
 	type Props = {
-		onStartTimeChange: (value: number) => void;
-		onEndTimeChange: (value: number) => void;
+		clipStartSecs: number;
+		clipEndSecs: number;
 		fullDurationSecs: number;
+		currentCursorPositionSecs: number;
+		isPaused: boolean;
 	};
 
-	let { onEndTimeChange, onStartTimeChange, fullDurationSecs }: Props = $props();
+	let {
+		fullDurationSecs,
+		clipEndSecs = $bindable(),
+		clipStartSecs = $bindable(),
+		currentCursorPositionSecs,
+		isPaused
+	}: Props = $props();
 
 	// Generate time segments every 5 seconds
 	let timeSegments = $derived.by(() => {
@@ -18,12 +30,11 @@
 
 	let startTime = $state(0);
 	let endTime = $state(Math.min(fullDurationSecs, 30)); // Default range of 30 seconds
-	let draggingHandle: 'start' | 'end' | null = $state(null);
+	let draggingHandle: 'start' | 'end' | 'full' | null = $state(null);
 
 	let sliderEl = $state<HTMLDivElement | null>(null);
 
-	function onMouseDown(handle: 'start' | 'end', event: MouseEvent) {
-		console.log('onMouseDown', handle);
+	function onMouseDown(handle: 'start' | 'end' | 'full', event: MouseEvent) {
 		draggingHandle = handle;
 		event.preventDefault();
 	}
@@ -31,20 +42,27 @@
 	const onMouseMove = $derived((event: MouseEvent) => {
 		if (!sliderEl || !draggingHandle) return;
 		const rect = sliderEl.getBoundingClientRect();
+
 		const offsetX = event.clientX - rect.left;
 		const percentage = Math.min(Math.max(offsetX / rect.width, 0), 1);
 		const newTime = Math.round(percentage * fullDurationSecs);
 
 		if (draggingHandle === 'start') {
 			startTime = Math.min(newTime, endTime - 1);
-			onStartTimeChange(startTime);
+			clipStartSecs = startTime;
 		} else if (draggingHandle === 'end') {
 			endTime = Math.max(newTime, startTime + 1);
-			onEndTimeChange(endTime);
+			clipEndSecs = endTime;
+		} else if (draggingHandle === 'full') {
+			const halfRange = (endTime - startTime) / 2;
+			startTime = Math.max(0, newTime - halfRange);
+			endTime = Math.min(fullDurationSecs, newTime + halfRange);
+			clipStartSecs = startTime;
+			clipEndSecs = endTime;
 		}
 	});
 
-	function onTouchStart(handle: 'start' | 'end', event: TouchEvent) {
+	function onTouchStart(handle: 'start' | 'end' | 'full', event: TouchEvent) {
 		event.preventDefault();
 		draggingHandle = handle;
 	}
@@ -59,10 +77,16 @@
 
 		if (draggingHandle === 'start') {
 			startTime = Math.min(newTime, endTime - 1);
-			onStartTimeChange(startTime);
+			clipStartSecs = startTime;
 		} else if (draggingHandle === 'end') {
 			endTime = Math.max(newTime, startTime + 1);
-			onEndTimeChange(endTime);
+			clipEndSecs = endTime;
+		} else if (draggingHandle === 'full') {
+			const halfRange = (endTime - startTime) / 2;
+			startTime = Math.max(0, newTime - halfRange);
+			endTime = Math.min(fullDurationSecs, newTime + halfRange);
+			clipStartSecs = startTime;
+			clipEndSecs = endTime;
 		}
 	});
 
@@ -73,6 +97,10 @@
 	function onMouseUp() {
 		draggingHandle = null;
 	}
+
+	$effect(() => {
+		console.log('Current Cursor Position:', currentCursorPositionSecs);
+	});
 </script>
 
 <svelte:window
@@ -97,9 +125,11 @@
 
 	<!-- Highlighted range -->
 	<div
-		class="absolute peer top-0 bottom-0 border-solid border-y-2 border-primary bg-opacity-20 bg-primary"
+		class="absolute peer top-0 bottom-0 border-solid border-y-2 border-primary bg-opacity-20 bg-primary cursor-move"
 		style:left={`${(startTime / fullDurationSecs) * 100}%`}
 		style:right={`${100 - (endTime / fullDurationSecs) * 100}%`}
+		onmousedown={(event) => onMouseDown('full', event)}
+		ontouchstart={(event) => onTouchStart('full', event)}
 	></div>
 
 	<!-- Start handle -->
@@ -127,12 +157,28 @@
 		class="absolute -bottom-14 bg-primary text-primary-foreground text-sm py-1 px-2 rounded shadow-md opacity-0 peer-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center"
 		style:left={`calc(${(startTime / fullDurationSecs) * 100}% + ${(endTime / fullDurationSecs - startTime / fullDurationSecs) * 50}% - 2rem)`}
 	>
-		<div>{Math.floor(endTime - startTime)}s</div>
 		<div>
-			{new Date(startTime * 1000).toISOString().slice(14, 19)} - {new Date(endTime * 1000)
-				.toISOString()
-				.slice(14, 19)}
+			{formatSecondsAsDuration(endTime - startTime)}
 		</div>
+		<div>
+			{formatTimestamp(startTime)} - {formatTimestamp(endTime)}
+		</div>
+	</div>
+
+	<!-- Playback position indicator -->
+	<div
+		class="absolute top-0 bottom-0 w-[2px] bg-red-500"
+		style:left={`${Math.min(Math.max(currentCursorPositionSecs / fullDurationSecs, 0), 1) * 100}%`}
+	>
+		{#if !isPaused}
+			<div
+				transition:blur={{ duration: 150 }}
+				class="absolute -top-6 bg-black text-white text-xs px-2 py-1 rounded"
+				style:transform="translateX(-50%)"
+			>
+				{new Date(currentCursorPositionSecs * 1000).toISOString().slice(14, 19)}
+			</div>
+		{/if}
 	</div>
 
 	<!-- Hover effect outline -->
