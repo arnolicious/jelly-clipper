@@ -85,3 +85,5 @@ export function formatSecondsAsDuration(seconds: number) {
 export function formatTimestamp(seconds: number) {
 	return new Date(seconds * 1000).toISOString().slice(14, 19);
 }
+
+export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

@@ -3,6 +3,12 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
+	import type { PageData } from './$types';
+
+	type Props = {
+		data: PageData;
+	};
+	let { data }: Props = $props();
 
 	let paramSourceUrl = $page.url.searchParams.get('sourceUrl');
 
@@ -25,9 +31,10 @@
 		<h3 class="text-lg text-center">Create clips from your favorite movies and shows</h3>
 	</div>
 	<div class="flex flex-col gap-4">
-		<Label class="text-sm text-slate-400"
-			>Click on the 3 dots on the item in the library, then "Copy Stream URL" and paste in here</Label
-		>
+		<Label class="text-sm text-slate-400">
+			In <a class="text-secondary underline" target="_blank" href={data.serverAddress}>Jellyfin</a>
+			click on the 3 dots on the item in the library, then "Copy Stream URL" and paste in here
+		</Label>
 		<Input autofocus bind:value={sourceUrl} />
 		<Button data-sveltekit-preload-data="off" {href} disabled={buttonIsDisabled}>
 			{#if isNavigating}

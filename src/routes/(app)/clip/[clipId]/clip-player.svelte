@@ -36,8 +36,17 @@
 	</Card.Header>
 	<Card.Content>
 		<div class="flex flex-col w-full h-full max-h-[540px] max-w-[960px]">
-			<media-player bind:this={player} title={clip?.title} streamType="on-demand" load="visible">
-				<!-- <media-poster src={sourceInfo.Image}></media-poster> -->
+			<media-player
+				poster="/api/thumb/{clip.id}"
+				posterLoad="eager"
+				bind:this={player}
+				title={clip?.title}
+				streamType="on-demand"
+				load="eager"
+				autoPlay
+				loop
+			>
+				<media-poster class="vds-poster" src="/api/thumb/{clip.id}"></media-poster>
 				<media-provider>
 					<source src="/videos/clips/{clip.id}.mp4" type="video/mp4" />
 				</media-provider>

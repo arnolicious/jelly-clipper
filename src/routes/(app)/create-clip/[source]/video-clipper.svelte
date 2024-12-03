@@ -5,7 +5,7 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
-	import { getDisplayTitleFromItem, ticksToSeconds } from '$lib/utils';
+	import { getDisplayTitleFromItem, sleep, ticksToSeconds } from '$lib/utils';
 	import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 	import { type MediaTimeChangeEvent } from 'vidstack';
 	import 'vidstack/bundle';
@@ -94,7 +94,13 @@
 			},
 			body: JSON.stringify(body)
 		})
-			.then((res) => res.json().then((data) => goto(`/clip/${data.clipId}`)))
+			.then((res) =>
+				res.json().then(async (data) => {
+					console.log('Frontend: Clip created', data);
+					await sleep(200);
+					goto(`/clip/${data.clipId}`);
+				})
+			)
 			.finally(() => {
 				isLoading = false;
 			});

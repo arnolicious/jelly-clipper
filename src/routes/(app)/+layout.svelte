@@ -5,6 +5,7 @@
 	import type { LayoutData } from './$types';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { page } from '$app/stores';
 
 	type Props = {
 		children: Snippet;
@@ -15,8 +16,12 @@
 </script>
 
 <Card.Root class="flex-1 flex flex-col h-full">
-	<Card.Header class="flex flex-row gap-2 items-center justify-between relative">
-		<div class="absolute left-6 flex flex-row gap-2 items-center justify-between">
+	<Card.Header class="flex flex-row gap-2 items-center justify-between relative pt-3">
+		<Button
+			variant="ghost"
+			href="/my-clips"
+			class="py-8 flex flex-row gap-2 items-center justify-between"
+		>
 			<Avatar.Root>
 				<Avatar.Image
 					src="{data.serverAddress}UserImage?UserId={data.user.jellyfinUserId}"
@@ -25,20 +30,22 @@
 				<Avatar.Fallback>{data.user.jellyfinUserName.slice(0, 2)}</Avatar.Fallback>
 			</Avatar.Root>
 			<div class=" flex-col hidden md:flex">
-				<Card.Title>
-					{data.user.jellyfinUserName}
-				</Card.Title>
+				<Card.Title>My clips</Card.Title>
 				<Card.Description>
 					Welcome {data.user.jellyfinUserName}!
 				</Card.Description>
 			</div>
-		</div>
+		</Button>
 		<span></span>
-		<Button variant="secondary" href="/" class="text-xl">🎬 Jelly-Clipper 🪼</Button>
-		<span></span>
+		{#if !$page.url.pathname.includes('create-clip')}
+			<Button variant="secondary" href="/" class="text-xl">
+				<i class="ph-bold ph-plus"></i>
+				Create new clip
+			</Button>
+		{/if}
 	</Card.Header>
-	<Separator class="mt-6" />
-	<Card.Content class="flex flex-col justify-evenly items-center h-full">
+	<Separator class="mt-3" />
+	<Card.Content class="flex flex-col justify-evenly items-center h-full overflow-auto">
 		{@render children()}
 	</Card.Content>
 </Card.Root>

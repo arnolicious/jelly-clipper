@@ -22,7 +22,7 @@ export const load: PageServerLoad = async (event) => {
 
 	return {
 		// user: event.locals.user,
-		// serverAddress: validatedSetup.serverAddress
+		serverAddress: validatedSetup.serverAddress
 		// mediaFolders: mediaFolders.Items ?? []
 	};
 };
