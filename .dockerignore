@@ -1,0 +1,6 @@
+static/videos/
+db/
+.git/
+node_modules/
+build/
+.svelte-kit/

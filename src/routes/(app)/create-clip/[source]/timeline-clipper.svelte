@@ -1,8 +1,7 @@
 <script lang="ts">
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { formatSecondsAsDuration, formatTimestamp } from '$lib/utils';
-	import { formatDuration, intervalToDuration } from 'date-fns';
-	import { blur, fade } from 'svelte/transition';
+	import { blur } from 'svelte/transition';
 
 	type Props = {
 		clipStartSecs: number;
