@@ -11,19 +11,31 @@ export const POST: RequestHandler = () => {
 		downloadProgressEventEmitter.on(
 			DOWNLOAD_EVENTS.START,
 			(data: DownloadProgressTypes['START']) => {
-				emit('data', JSON.stringify(data));
+				const { error } = emit('data', JSON.stringify(data));
+				if (error) {
+					console.error('Start Event', error);
+					return;
+				}
 			}
 		);
 
 		downloadProgressEventEmitter.on(
 			DOWNLOAD_EVENTS.PROGRESS_UPDATE,
 			(data: DownloadProgressTypes['PROGRESS_UPDATE']) => {
-				emit('data', JSON.stringify(data));
+				const { error } = emit('data', JSON.stringify(data));
+				if (error) {
+					console.error('Progress Event', error);
+					return;
+				}
 			}
 		);
 
 		downloadProgressEventEmitter.on(DOWNLOAD_EVENTS.END, () => {
-			emit('end', '{}');
+			const { error } = emit('end', '{}');
+			if (error) {
+				console.error('End Event', error);
+				return;
+			}
 		});
 	});
 };

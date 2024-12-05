@@ -18,9 +18,8 @@
 		'/api/download-progress'
 	)
 		.select('data')
-		.json(function or({ error, raw, previous }) {
-			console.error(`Could not parse "${raw}" as json.`, error);
-			return previous; // This will be the new value of the store
+		.json(function or() {
+			return null; // This will be the new value of the store
 		});
 
 	let progressString = $derived.by(() => {
@@ -51,8 +50,7 @@
 		<div class="flex flex-col gap-8 justify-center items-center">
 			<JugglingCubeSpinner ballColor="#af63d2" cubeColor="#17adec" />
 			<span class="text-slate-400 italic">
-				Downloading: {getDisplayTitleFromItem(sourceInfo)}
-				{size ? `(${size})` : ''}, please be patient...
+				Downloading: {getDisplayTitleFromItem(sourceInfo)}, please be patient...
 			</span>
 			<Progress
 				value={$downloadProgress && 'percentage' in $downloadProgress

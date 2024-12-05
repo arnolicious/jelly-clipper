@@ -6,5 +6,7 @@ services:
       - 3001:3000
     volumes:
       - ./deploy/db:/app/db
-      - ./deploy/videos:/app/static/videos
+      - ./deploy/videos:/app/assets/videos
     restart: unless-stopped
+    environment:
+      - JELLY_CLIPPER_ORIGIN=http://localhost:3001

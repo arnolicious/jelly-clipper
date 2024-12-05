@@ -37,7 +37,7 @@
 			</div>
 		</Button>
 		<span></span>
-		{#if !$page.url.pathname.includes('create-clip')}
+		{#if !$page.url.pathname.endsWith('create-clip')}
 			<Button variant="secondary" href="/" class="text-xl">
 				<i class="ph-bold ph-plus"></i>
 				Create new clip

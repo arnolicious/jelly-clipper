@@ -24,7 +24,7 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 	}
 
 	// Create clip in db
-	const { lastInsertRowid: clipId } = await db
+	const { lastInsertRowid } = await db
 		.insert(clips)
 		.values({
 			createdAt: new Date(),
@@ -37,6 +37,9 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 		.execute();
 
 	const duration = body.end - body.start;
+
+	// Convert Bigint to Number
+	const clipId = Number(lastInsertRowid);
 
 	// Load media file from ASSETS_ORIGINALS_DIR/:sourceId.mp4
 	const proc = ffmpeg({ source: `${ASSETS_ORIGINALS_DIR}/${sourceId}.mp4` });

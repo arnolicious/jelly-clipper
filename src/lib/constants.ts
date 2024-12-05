@@ -1,4 +1,4 @@
-export const ASSETS_ROOT_DIR = 'static/videos';
+export const ASSETS_ROOT_DIR = 'assets/videos';
 
 export const ASSETS_ORIGINALS_DIR = `${ASSETS_ROOT_DIR}/originals`;
 
