@@ -2,13 +2,17 @@
 
 Jelly-Clipper is an open-source web application that allows Jellyfin users to easily create, share, and manage video clips directly from their media library (or at least it will be once all the major features are implemented :p )
 
+> [!IMPORTANT] 
+> This is my first open source project, and it was very much a hacky "lets try to make it work somehow" thing.
+> So absolutely feel free to contribute and fix all the stuff I did wrong :D
+
 ## 🌟 Features
 
 - **Simple Clip Creation**: Paste a URL and create clips with ease
 - **Seamless Jellyfin Integration**: Works directly with your self-hosted Jellyfin server
-- **User Authentication**: Secure access for your media clips
+- **User Authentication**: Clips are only accessible for other users of the Jellyfin instance
 - **Easy Sharing**: Generate shareable links for your favorite moments
-- **User-Friendly Interface**: Intuitive design inspired by YouTube and Twitch clip functionality
+- **User-Friendly(-ish) Interface**: Intuitive design inspired by YouTube and Twitch clip functionality
 
 ## 📸 Screenshots
 <p float="left">
@@ -77,10 +81,9 @@ Contributions are welcome! Please check out our [Contribution Guidelines](CONTRI
 ## 📋 Todo
 
 - [x] Basic Prototype
-- [ ] Implement sound (lol)
-- [ ] Download Progress Indicator
-- [ ] Clipping Segmented Inputs
-- [ ] Clipping UI
+- [x] Implement sound (lol)
+- [x] Download Progress Indicator
+- [x] Clipping UI
 - [ ] Create browser extension
 - [ ] Improve mobile responsiveness
 
