@@ -10,3 +10,4 @@ services:
     restart: unless-stopped
     environment:
       - JELLY_CLIPPER_ORIGIN=http://localhost:3001
+      - TZ=Europe/Berlin
