@@ -3,8 +3,8 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
-		"build": "vite build",
+		"dev": "bunx --bun vite dev",
+		"build": "bunx --bun vite build",
 		"build:docker": "docker build -t arnolicious/jelly-clipper:latest .",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -35,6 +35,7 @@
 		"svelte-adapter-bun": "^0.5.2",
 		"svelte-check": "^4.1.0",
 		"svelte-sonner": "^0.3.28",
+		"sveltekit-sse": "^0.13.9",
 		"sveltekit-superforms": "^2.20.1",
 		"tailwind-merge": "^2.5.4",
 		"tailwind-variants": "^0.3.0",
@@ -48,6 +49,7 @@
 	"dependencies": {
 		"@jellyfin/sdk": "0.10.0",
 		"@libsql/client": "^0.14.0",
+		"@types/bun": "^1.1.14",
 		"@types/fluent-ffmpeg": "^2.1.27",
 		"date-fns": "^4.1.0",
 		"drizzle-orm": "^0.33.0",
