@@ -44,6 +44,8 @@ services:
       - <MY_VIDEOS_PATH>:/app/assets/videos
     restart: unless-stopped
     environment:
+      # Timezone to have the cleanup cron job working as expected
+      - TZ=Europe/Berlin
       # Full URL with Protocol and Port, where the application will live
       - JELLY_CLIPPER_ORIGIN=http://localhost:3000
       # with a reverse proxy it could be something like:
