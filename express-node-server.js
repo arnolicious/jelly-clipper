@@ -17,8 +17,8 @@ app.use(express.static(assetsPath));
 // let SvelteKit handle everything else, including serving prerendered pages and static assets
 app.use(handler);
 
-// Run the cleanup function every day at 00:10
-cron.schedule('26 0 * * *', cleanUpOriginalsFolder, { timezone: process.env.TZ });
+// Run the cleanup function every day at 2:30 AM
+cron.schedule('30 2 * * *', cleanUpOriginalsFolder, { timezone: process.env.TZ });
 
 app.listen(3000, () => {
 	console.log('listening on port 3000');
