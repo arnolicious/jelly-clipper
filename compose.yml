@@ -1,0 +1,10 @@
+services:
+  jelly-clipper:
+    image: arnolicious/jelly-clipper:latest
+    container_name: jelly-clipper
+    ports:
+      - 3001:3000
+    volumes:
+      - /deploy/db:/app/db
+      - /deyploy/videos:/app/static/videos
+    restart: unless-stopped
