@@ -1,6 +1,6 @@
 # 🪼 Jelly-Clipper 🎬
 
-Jelly-Clipper is an open-source web application that allows Jellyfin users to easily create, share, and manage video clips directly from their media library (or at least it will be once all the major features are implemented :p )
+Jelly-Clipper is an open-source web application that allows Jellyfin users to easily create, share, and manage video clips from their Jellyfin media library
 
 > [!IMPORTANT]
 > This is my first open source project, and it was very much a hacky "lets try to make it work somehow" thing.
@@ -17,10 +17,12 @@ Jelly-Clipper is an open-source web application that allows Jellyfin users to ea
 ## 📸 Screenshots
 
 <p float="left">
-  <img src="https://github.com/user-attachments/assets/aae606aa-6a76-4257-99b1-97e858a2c10c" width="320" />
-  <img src="https://github.com/user-attachments/assets/b538d53f-a126-4658-93fb-046b0900543c" width="320" /> 
-  <img src="https://github.com/user-attachments/assets/27de9a66-838a-4301-8f76-fee9140a6dee" width="320" />
+  
+  <img src="https://github.com/user-attachments/assets/497fee97-571d-4181-a2a6-64092bba9174" width="320" />
+  <img src="https://github.com/user-attachments/assets/8aa52143-732d-417e-bcea-f99c11a8b447" width="320" /> 
+  <img src="https://github.com/user-attachments/assets/21ff1121-516c-43ee-a14e-26039d05e2de" width="320" />
 </p>
+
 
 ## 🚀 Deployment
 
