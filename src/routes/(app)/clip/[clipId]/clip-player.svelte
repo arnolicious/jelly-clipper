@@ -4,6 +4,8 @@
 	import 'vidstack/bundle';
 	import * as Card from '$lib/components/ui/card';
 	import * as Avatar from '$lib/components/ui/avatar';
+	import Button from '$lib/components/ui/button/button.svelte';
+	import { toast } from 'svelte-sonner';
 
 	type Props = {
 		clip: Clip;
@@ -13,6 +15,17 @@
 	let player: MediaPlayerElement | null = $state(null);
 
 	let { clip, creator, jellyfinAddress }: Props = $props();
+
+	function onStartDownload() {
+		toast.info('Download started');
+	}
+
+	function onCopyUrl() {
+		navigator.clipboard.writeText(window.location.href);
+		toast.info('URL copied to clipboard', {
+			description: `Link: ${window.location.href}`
+		});
+	}
 </script>
 
 <Card.Root>
@@ -54,4 +67,21 @@
 			</media-player>
 		</div>
 	</Card.Content>
+	<Card.Footer>
+		<div class="w-full flex justify-end gap-2">
+			<Button variant="outline" onclick={onCopyUrl}>
+				<i class="text-xl ph ph-copy-simple"></i>
+				Copy Link
+			</Button>
+			<Button
+				variant="default"
+				onclick={onStartDownload}
+				href="/videos/clips/{clip.id}.mp4"
+				download
+			>
+				<i class="text-xl ph ph-download"></i>
+				Download
+			</Button>
+		</div>
+	</Card.Footer>
 </Card.Root>
