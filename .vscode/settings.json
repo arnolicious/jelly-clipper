@@ -3,5 +3,7 @@
 	"workbench.editor.customLabels.patterns": {
 		"**/+*": "${dirname} (${filename}.${extname})"
 	},
-	"html.customData": ["./node_modules/vidstack/vscode.html-data.json"]
+	"html.customData": ["./node_modules/vidstack/vscode.html-data.json"],
+	"eslint.validate": ["javascript", "typescript", "svelte"],
+	"eslint.probe": ["javascript", "typescript", "svelte"]
 }
