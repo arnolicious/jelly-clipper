@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - '*'
+    branches:
+      - 'chore/ci-cd-pipeline'
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build-and-push:
@@ -12,9 +17,18 @@ jobs:
       contents: read
       packages: write
 
+    env:
+      SHOULD_PUSH: ${{ github.event_name == 'push' && github.event.base_ref == 'refs/heads/main' }}
+      DATABASE_URL: db/jelly-clipper.db
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      # Create .env file with database path
+      - name: Create .env file
+        run: |
+          echo "DATABASE_URL=${{ env.DATABASE_URL }}" > .env
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -23,6 +37,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
+        if: env.SHOULD_PUSH == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -37,14 +52,18 @@ jobs:
           tags: |
             type=ref,event=tag
             type=sha,format=long
+            type=raw,value=test-${{ github.sha }},enable=${{ env.SHOULD_PUSH != 'true' }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          push: ${{ env.SHOULD_PUSH == 'true' }}
+          load: ${{ env.SHOULD_PUSH != 'true' }}
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            DATABASE_URL=${{ env.DATABASE_URL }}
