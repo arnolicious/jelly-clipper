@@ -23,4 +23,4 @@ ENV NODE_ENV=production
 
 EXPOSE 3000
 
-CMD ["node", "--env-file=.env", "express-node-server.js"]
+CMD ["node", "express-node-server.js"]

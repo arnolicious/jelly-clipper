@@ -23,7 +23,6 @@ Jelly-Clipper is an open-source web application that allows Jellyfin users to ea
   <img src="https://github.com/user-attachments/assets/21ff1121-516c-43ee-a14e-26039d05e2de" width="320" />
 </p>
 
-
 ## 🚀 Deployment
 
 ### Docker Installation
@@ -33,7 +32,7 @@ Jelly-Clipper is easily hostable with docker compose:
 ```yaml
 services:
   jelly-clipper:
-    image: arnolicious/jelly-clipper:latest
+    image: ghcr.io/arnolicious/jelly-clipper:latest
     container_name: jelly-clipper
     ports:
       - 3000:3000
