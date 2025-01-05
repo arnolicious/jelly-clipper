@@ -3,17 +3,12 @@
 	import * as Form from '$lib/components/ui/form/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { toast } from 'svelte-sonner';
-	import {
-		type SuperValidated,
-		type Infer,
-		superForm,
-		type FormResult
-	} from 'sveltekit-superforms';
+	import { superForm, type FormResult } from 'sveltekit-superforms';
 	import { zodClient } from 'sveltekit-superforms/adapters';
 	import { goto } from '$app/navigation';
 	import { fade } from 'svelte/transition';
 	import type { ActionData, PageData } from './$types';
-	import { loginFormSchema, type LoginFormSchema } from '../login/schema';
+	import { loginFormSchema } from '../login/schema';
 
 	type Props = {
 		data: PageData;
@@ -55,10 +50,8 @@
 
 <Card.Root>
 	<Card.Header>
-		<Card.Title>Setup Jelly-Clipper</Card.Title>
-		<Card.Description>
-			Jelly-Clipper has not been setup yet. Please provide the Jellyfin URL to get started.
-		</Card.Description>
+		<Card.Title>Login</Card.Title>
+		<Card.Description>Please enter your Jellyfin credentials to log in.</Card.Description>
 	</Card.Header>
 	<Card.Content>
 		<form method="POST" action="?/login" use:setupLoginEnhance transition:fade>
@@ -86,7 +79,7 @@
 				{#if $setupLoginSubmitting}
 					Logging in...
 				{:else}
-					Submit
+					Login
 				{/if}
 			</Form.Button>
 		</form>
