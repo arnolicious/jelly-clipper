@@ -7,8 +7,6 @@ on:
 
 jobs:
   build-and-push:
-    # Only run if the tag is on the main branch
-    if: github.event.base_ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
