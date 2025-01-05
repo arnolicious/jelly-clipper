@@ -25,7 +25,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Create .env file with database path
       - name: Create .env file
         run: |
           echo "DATABASE_URL=${{ env.DATABASE_URL }}" > .env
@@ -54,13 +53,29 @@ jobs:
             type=sha,format=long
             type=raw,value=test-${{ github.sha }},enable=${{ env.SHOULD_PUSH != 'true' }}
 
+      # Production build (multi-platform)
       - name: Build and push Docker image
+        if: env.SHOULD_PUSH == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ env.SHOULD_PUSH == 'true' }}
-          load: ${{ env.SHOULD_PUSH != 'true' }}
+          push: true
           platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            DATABASE_URL=${{ env.DATABASE_URL }}
+
+      # Test build (single platform)
+      - name: Build Docker image for testing
+        if: env.SHOULD_PUSH != 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          load: true
+          platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
