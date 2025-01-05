@@ -18,7 +18,7 @@
 	"devDependencies": {
 		"@sveltejs/adapter-node": "^5.2.9",
 		"@sveltejs/kit": "^2.8.2",
-		"@sveltejs/vite-plugin-svelte": "^4.0.1",
+		"@sveltejs/vite-plugin-svelte": "^5.0.0",
 		"autoprefixer": "^10.4.20",
 		"bits-ui": "^1.0.0-next.64",
 		"clsx": "^2.1.1",
