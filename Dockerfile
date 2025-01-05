@@ -14,6 +14,8 @@ RUN npm install
 RUN mkdir db
 RUN touch db/jelly-clipper.db
 
+ENV DATABASE_URL=db/jelly-clipper.db
+
 COPY . .
 RUN npm run build
 
