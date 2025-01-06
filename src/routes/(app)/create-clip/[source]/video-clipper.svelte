@@ -30,6 +30,7 @@
 
 	$effect(() => {
 		if (!triggerEl) return;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		remoteControl.setPlayer(player as any);
 		remoteControl.setTarget(triggerEl);
 	});
@@ -51,10 +52,10 @@
 	const onTimeChange = (e: MediaTimeChangeEvent) => {
 		const currentTimeInSeconds = e.detail;
 
-		// If the current time is outside the clip range, set it back to the start
+		// If the current time is outside the clip range (with 0.05s tolerance), set it back to the start
 		if (
-			currentTimeInSeconds < clipStartTimeSeconds ||
-			(clipEndTimeSeconds && currentTimeInSeconds > clipEndTimeSeconds)
+			currentTimeInSeconds < clipStartTimeSeconds - 0.05 ||
+			(clipEndTimeSeconds && currentTimeInSeconds > clipEndTimeSeconds + 0.05)
 		) {
 			setPlayerTime(clipStartTimeSeconds);
 		}
@@ -128,7 +129,6 @@
 	let isPaused = $state(true);
 </script>
 
-<!-- svelte-ignore a11y_media_has_caption -->
 <!-- svelte-ignore event_directive_deprecated -->
 <div class="w-full h-full flex flex-col justify-start items-center max-w-[900px]">
 	<div class="aspect-video">

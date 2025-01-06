@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import VideoClipper from './video-clipper.svelte';
-	import { getDisplayTitleFromItem, getItemSize } from '$lib/utils';
+	import { getDisplayTitleFromItem } from '$lib/utils';
 	import JugglingCubeSpinner from '$lib/components/ui/spinner/juggling-cube-spinner.svelte';
 	import { source } from 'sveltekit-sse';
 	import Progress from '$lib/components/ui/progress/progress.svelte';
@@ -46,7 +46,6 @@
 	</div>
 {:then sourceInfo}
 	{#await data.fileInfo}
-		{@const size = getItemSize(sourceInfo)}
 		<div class="flex flex-col gap-8 justify-center items-center">
 			<JugglingCubeSpinner ballColor="#af63d2" cubeColor="#17adec" />
 			<span class="text-slate-400 italic">

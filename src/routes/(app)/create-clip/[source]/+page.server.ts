@@ -97,7 +97,7 @@ export const load: PageServerLoad = async (event) => {
 
 	let downloadedSize = 0;
 	const fileStream = createWriteStream(`${ASSETS_ORIGINALS_DIR}/${sourceInfo.sourceId}.mp4`);
-	const responseStream = response.data as NodeJS.ReadableStream;
+	const responseStream = response.data as unknown as NodeJS.ReadableStream;
 
 	// Create a throttled logger that logs every 5 seconds
 	const progressEmitter = emitThrottledProgressEvents(5000);

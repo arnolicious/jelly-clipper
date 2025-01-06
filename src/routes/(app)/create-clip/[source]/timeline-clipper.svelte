@@ -26,15 +26,20 @@
 	// 100 = 100% of the video is visible
 	let visibleDurationPercentage = $state(100);
 	const ZOOM_STEP = 10;
+	const FINE_ZOOM_STEP = 1;
 
 	/**
 	 * Zoom in the timeline, showing less of the video
 	 * the "center" should be the middle of the highlighted range
 	 */
 	const onZoomIn = () => {
-		if (visibleDurationPercentage <= 10) return;
+		if (visibleDurationPercentage <= 1) return;
 
-		visibleDurationPercentage -= ZOOM_STEP;
+		if (visibleDurationPercentage <= 10) {
+			visibleDurationPercentage -= FINE_ZOOM_STEP;
+		} else {
+			visibleDurationPercentage -= ZOOM_STEP;
+		}
 		const visibleDuration = (visibleDurationPercentage / 100) * fullDurationSecs;
 
 		const clipMidpoint = (clipStartSecs + clipEndSecs) / 2;
@@ -54,7 +59,11 @@
 	const onZoomOut = () => {
 		if (visibleDurationPercentage >= 100) return;
 
-		visibleDurationPercentage += ZOOM_STEP;
+		if (visibleDurationPercentage <= 10) {
+			visibleDurationPercentage += FINE_ZOOM_STEP;
+		} else {
+			visibleDurationPercentage += ZOOM_STEP;
+		}
 		const visibleDuration = (visibleDurationPercentage / 100) * fullDurationSecs;
 
 		const clipMidpoint = (clipStartSecs + clipEndSecs) / 2;
@@ -85,7 +94,6 @@
 	let draggingHandle: 'start' | 'end' | 'full' | null = $state(null);
 
 	let timelineEl = $state<HTMLDivElement | null>(null);
-	let highlightEl = $state<HTMLDivElement | null>(null);
 
 	function onMouseDown(handle: 'start' | 'end' | 'full', event: MouseEvent) {
 		draggingHandle = handle;
@@ -98,13 +106,17 @@
 
 		const offsetX = event.clientX - rect.left;
 		const percentage = Math.min(Math.max(offsetX / rect.width, 0), 1);
-		const newTime = Math.round(percentage * (timelineEnd - timelineStart) + timelineStart);
+
+		const newTimePrecise = percentage * (timelineEnd - timelineStart) + timelineStart;
+		const newTime = Math.round(newTimePrecise * 100) / 100;
+
+		console.log('newTime', newTime);
 
 		if (draggingHandle === 'start') {
-			startTime = Math.min(newTime, endTime - 1);
+			startTime = Math.min(newTime, endTime - 0.1);
 			clipStartSecs = startTime;
 		} else if (draggingHandle === 'end') {
-			endTime = Math.max(newTime, startTime + 1);
+			endTime = Math.max(newTime, startTime + 0.1);
 			clipEndSecs = endTime;
 		} else if (draggingHandle === 'full') {
 			const halfRange = (endTime - startTime) / 2;
@@ -127,13 +139,15 @@
 		const touch = event.touches[0];
 		const offsetX = touch.clientX - rect.left;
 		const percentage = Math.min(Math.max(offsetX / rect.width, 0), 1);
-		const newTime = Math.round(percentage * (timelineEnd - timelineStart) + timelineStart);
+
+		const newTimePrecise = percentage * (timelineEnd - timelineStart) + timelineStart;
+		const newTime = Math.round(newTimePrecise * 100) / 100;
 
 		if (draggingHandle === 'start') {
-			startTime = Math.min(newTime, endTime - 1);
+			startTime = Math.min(newTime, endTime - 0.1);
 			clipStartSecs = startTime;
 		} else if (draggingHandle === 'end') {
-			endTime = Math.max(newTime, startTime + 1);
+			endTime = Math.max(newTime, startTime + 0.1);
 			clipEndSecs = endTime;
 		} else if (draggingHandle === 'full') {
 			const halfRange = (endTime - startTime) / 2;
@@ -164,7 +178,7 @@
 />
 
 <div class="flex gap-2 mt-2">
-	<Button variant="outline" onclick={onZoomIn} disabled={visibleDurationPercentage <= 10}>
+	<Button variant="outline" onclick={onZoomIn} disabled={visibleDurationPercentage <= 1}>
 		<i class="ph-bold ph-magnifying-glass-plus text-xl"></i>
 	</Button>
 	<Button variant="outline" onclick={onZoomOut} disabled={visibleDurationPercentage > 90}>
