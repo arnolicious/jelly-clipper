@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { DateRangeField } from 'bits-ui';
 	import type { PageData } from './$types';
 	import ClipPlayer from './clip-player.svelte';
 
@@ -9,8 +7,6 @@
 	};
 
 	let { data }: Props = $props();
-
-	const clipId = $page.params.clipId;
 </script>
 
 {#if !data.clip}
