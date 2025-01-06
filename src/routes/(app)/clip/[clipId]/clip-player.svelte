@@ -13,11 +13,29 @@
 		jellyfinAddress: string;
 	};
 	let player: MediaPlayerElement | null = $state(null);
+	let hiddenAudioDownloadLink: HTMLAnchorElement | null = $state(null);
 
 	let { clip, creator, jellyfinAddress }: Props = $props();
 
-	function onStartDownload() {
-		toast.info('Download started');
+	function onStartVideoDownload() {
+		toast.info(`Clip video download started`);
+	}
+
+	function onStartAudioDownload() {
+		const createAudioClipPromise = fetch(`/api/clips/${clip.id}/createAudio`).then((response) => {
+			if (response.ok) {
+				// Trigger the download
+				hiddenAudioDownloadLink?.click();
+				toast.info('Audio download started');
+			}
+			throw new Error('Failed to create audio clip');
+		});
+
+		toast.promise(createAudioClipPromise, {
+			loading: 'Creating audio clip...',
+			success: 'Audio clip created',
+			error: 'Failed to create audio clip'
+		});
 	}
 
 	function onCopyUrl() {
@@ -73,15 +91,31 @@
 				<i class="text-xl ph ph-copy-simple"></i>
 				Copy Link
 			</Button>
-			<Button
-				variant="default"
-				onclick={onStartDownload}
-				href="/videos/clips/{clip.id}.mp4"
-				download
-			>
-				<i class="text-xl ph ph-download"></i>
-				Download
-			</Button>
+			<div class="flex gap-1">
+				<Button
+					variant="default"
+					onclick={onStartVideoDownload}
+					href="/videos/clips/{clip.id}.mp4"
+					download="{clip.title}.mp4"
+				>
+					<i class="text-xl ph ph-download"></i>
+					Download Video
+					<i class="text-xl ph ph-video"></i>
+				</Button>
+				<Button variant="default" onclick={onStartAudioDownload}>
+					<i class="text-xl ph ph-download"></i>
+					Download Audio
+					<i class="text-xl ph ph-music-notes"></i>
+				</Button>
+				<a
+					bind:this={hiddenAudioDownloadLink}
+					hidden
+					aria-hidden="true"
+					href="/videos/clips/{clip.id}.mp3"
+					download="{clip.title}.mp3"
+				>
+				</a>
+			</div>
 		</div>
 	</Card.Footer>
 </Card.Root>
