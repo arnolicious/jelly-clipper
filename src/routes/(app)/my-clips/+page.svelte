@@ -28,15 +28,13 @@
 					href="/clip/{clip.id}"
 					class="bg-slate-800 p-3 rounded-md flex flex-col gap-2 h-auto items-start"
 				>
+					<h2 class="font-bold text-wrap">{clip.title}</h2>
 					<img
 						alt={clip.title}
 						src="/api/thumb/{clip.id}"
 						class="bg-slate-600 rounded-md w-full aspect-video"
 					/>
-					<div class="w-full">
-						<h2 class="font-semibold text-wrap">{clip.title}</h2>
-						<p class="text-sm text-wrap">{clip.sourceTitle}</p>
-					</div>
+					<p class="text-sm text-wrap">{clip.sourceTitle}</p>
 					<div class="flex-1 flex w-full flex-col justify-end">
 						<div class="flex w-full flex-row justify-between items-end">
 							<p class="text-xs text-muted-foreground">
