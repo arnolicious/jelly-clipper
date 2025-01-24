@@ -32,25 +32,17 @@ Jelly-Clipper is easily hostable with docker compose:
 ```yaml
 services:
   jelly-clipper:
-    image: ghcr.io/arnolicious/jelly-clipper:latest
+    image: arnolicious/jelly-clipper:latest
     container_name: jelly-clipper
     ports:
-      - 3000:3000
+      - 3001:3000
     volumes:
-      # Path to the db directory, in which the sqlite db file will live
-      - <MY_DB_PATH>:/app/db
-      # Path to the videos directory.
-      # This will store all the clips permanently and the original files temporarily,
-      # so it might get a lil big
-      - <MY_VIDEOS_PATH>:/app/assets/videos
+      - ./deploy/db:/app/db
+      - ./deploy/videos:/app/assets/videos
     restart: unless-stopped
     environment:
-      # Timezone to have the cleanup cron job working as expected
+      - JELLY_CLIPPER_ORIGIN=http://localhost:3001
       - TZ=Europe/Berlin
-      # Full URL with Protocol and Port, where the application will live
-      - JELLY_CLIPPER_ORIGIN=http://localhost:3000
-      # with a reverse proxy it could be something like:
-      # - JELLY_CLIPPER_ORIGIN=https://clip.jellyfin.mydomain.test
 ```
 
 ## 💻 Technologies
