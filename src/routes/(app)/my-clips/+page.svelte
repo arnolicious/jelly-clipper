@@ -44,7 +44,7 @@
 								variant="secondary"
 								onclick={onStartDownload}
 								href="/videos/clips/{clip.id}.mp4"
-								download
+								download="{clip.title}.mp4"
 							>
 								<i class="text-xl ph ph-download"></i>
 							</Button>
