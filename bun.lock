@@ -31,7 +31,7 @@
         "formsnap": "^2.0.0-next.1",
         "globals": "^16.0.0",
         "lucide-svelte": "^0.507.0",
-        "mode-watcher": "^1.0.0",
+        "mode-watcher": "^1.0.6",
         "prettier": "^3.3.3",
         "prettier-plugin-svelte": "^3.3.2",
         "svelte": "^5.16.1",
@@ -735,7 +735,7 @@
 
     "minipass": ["minipass@7.1.2", "", {}, "sha512-qOOzS1cBTWYF4BH8fVePDBOO9iptMnGUEZwNc/cMWnTV2nVLZ7VoNWEPHkYczZA0pdoA7dl6e7FL659nX9S2aw=="],
 
-    "mode-watcher": ["mode-watcher@1.0.0", "", { "dependencies": { "runed": "^0.25.0", "svelte-toolbelt": "^0.7.1" }, "peerDependencies": { "svelte": "^5.27.0" } }, "sha512-pR7f1uVe6WAds4WAM8DxGk+w4fN94AgpYQp29IQRZqlWpYS1NwtVaLIil1OrYISuJaotfyLAviRKrc+yCwBw2g=="],
+    "mode-watcher": ["mode-watcher@1.0.6", "", { "dependencies": { "runed": "^0.25.0", "svelte-toolbelt": "^0.7.1" }, "peerDependencies": { "svelte": "^5.27.0" } }, "sha512-6bG6KfPPaZoaw523rLR3z8dlCK/dskIBv7z7qdRPizD5b5BDYyCCLQ33FSCRTd7Ai3i7FWIBuXCZaF5IVVC3GQ=="],
 
     "mri": ["mri@1.2.0", "", {}, "sha512-tzzskb3bG8LvYGFF/mDTpq3jpI6Q9wc3LEmBaghu+DdCssd1FakN7Bc0hVNmEyGq1bq3RgfkCb3cmQLpNPOroA=="],
 
