@@ -6,6 +6,8 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { toast } from 'svelte-sonner';
+	import { goto } from '$app/navigation';
+	import DeleteConfirmation from '$lib/components/delete-confirmation/delete-confirmation.svelte';
 
 	type Props = {
 		clip: Clip;
@@ -16,6 +18,8 @@
 	let hiddenAudioDownloadLink: HTMLAnchorElement | null = $state(null);
 
 	let { clip, creator, jellyfinAddress }: Props = $props();
+
+	let deleteConfirmation = $state<null | ReturnType<typeof DeleteConfirmation>>(null);
 
 	function onStartVideoDownload() {
 		toast.info(`Clip video download started`);
@@ -44,6 +48,32 @@
 			description: `Link: ${window.location.href}`
 		});
 	}
+
+	const onDeleteClip = async () => {
+		let toastId = toast.loading('Deleting clip...');
+		try {
+			const response = await fetch(`/api/clips/${clip.id}`, {
+				method: 'DELETE'
+			});
+
+			if (response.ok) {
+				toast.success('Clip deleted successfully', {
+					id: toastId
+				});
+				goto('/my-clips');
+			} else {
+				toast.error('Failed to delete clip', {
+					description: 'Please try again later.',
+					id: toastId
+				});
+			}
+		} catch (error) {
+			toast.error('Failed to delete clip', {
+				description: (error as Error).message,
+				id: toastId
+			});
+		}
+	};
 </script>
 
 <Card.Root>
@@ -86,12 +116,19 @@
 		</div>
 	</Card.Content>
 	<Card.Footer>
-		<div class="w-full flex justify-end gap-2">
-			<Button variant="outline" onclick={onCopyUrl}>
-				<i class="text-xl ph ph-copy-simple"></i>
-				Copy Link
+		<div class="w-full flex justify-between">
+			<Button
+				variant="destructive"
+				onclick={() => deleteConfirmation?.withConfirmation(() => onDeleteClip())}
+			>
+				<i class="text-xl ph ph-trash"></i>
+				Delete Clip
 			</Button>
-			<div class="flex gap-1">
+			<div class="flex gap-2">
+				<Button variant="outline" onclick={onCopyUrl}>
+					<i class="text-xl ph ph-copy-simple"></i>
+					Copy Link
+				</Button>
 				<Button
 					variant="default"
 					onclick={onStartVideoDownload}
@@ -119,3 +156,9 @@
 		</div>
 	</Card.Footer>
 </Card.Root>
+
+<DeleteConfirmation
+	bind:this={deleteConfirmation}
+	confirmText="Yes, delete clip!"
+	description="This action cannot be undone. This will permanently delete this clip."
+/>
