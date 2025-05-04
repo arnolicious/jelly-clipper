@@ -13,11 +13,12 @@
 		clip: Clip;
 		creator: User;
 		jellyfinAddress: string;
+		currentUser: User;
 	};
 	let player: MediaPlayerElement | null = $state(null);
 	let hiddenAudioDownloadLink: HTMLAnchorElement | null = $state(null);
 
-	let { clip, creator, jellyfinAddress }: Props = $props();
+	let { clip, creator, jellyfinAddress, currentUser }: Props = $props();
 
 	let deleteConfirmation = $state<null | ReturnType<typeof DeleteConfirmation>>(null);
 
@@ -117,13 +118,17 @@
 	</Card.Content>
 	<Card.Footer>
 		<div class="w-full flex justify-between">
-			<Button
-				variant="destructive"
-				onclick={() => deleteConfirmation?.withConfirmation(() => onDeleteClip())}
-			>
-				<i class="text-xl ph ph-trash"></i>
-				Delete Clip
-			</Button>
+			{#if clip.userId !== currentUser.jellyfinUserId}
+				<Button
+					variant="destructive"
+					onclick={() => deleteConfirmation?.withConfirmation(() => onDeleteClip())}
+				>
+					<i class="text-xl ph ph-trash"></i>
+					Delete Clip
+				</Button>
+			{:else}
+				<div></div>
+			{/if}
 			<div class="flex gap-2">
 				<Button variant="outline" onclick={onCopyUrl}>
 					<i class="text-xl ph ph-copy-simple"></i>
