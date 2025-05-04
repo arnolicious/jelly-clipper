@@ -17,6 +17,5 @@
       "enabled": true
     }
   ],
-  "updateInternalDependencies": true,
   "rangeStrategy": "bump"
 }
