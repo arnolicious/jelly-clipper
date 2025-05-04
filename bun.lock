@@ -31,7 +31,7 @@
         "formsnap": "^2.0.0-next.1",
         "globals": "^16.0.0",
         "lucide-svelte": "^0.507.0",
-        "mode-watcher": "^1.0.0",
+        "mode-watcher": "^1.0.6",
         "prettier": "^3.3.3",
         "prettier-plugin-svelte": "^3.3.3",
         "svelte": "^5.28.2",
