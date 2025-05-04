@@ -16,10 +16,10 @@
 		"format": "prettier --write ."
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-node": "^5.2.9",
+		"@sveltejs/adapter-node": "^5.2.12",
 		"@sveltejs/kit": "^2.15.1",
 		"@sveltejs/vite-plugin-svelte": "^5.0.3",
-		"autoprefixer": "^10.4.20",
+		"autoprefixer": "^10.4.21",
 		"bits-ui": "^1.4.4",
 		"clsx": "^2.1.1",
 		"drizzle-kit": "^0.31.0",
