@@ -5,7 +5,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const sessionId = event.cookies.get('sessionid');
 
 	const pathName = event.url.pathname;
-	if (pathName.startsWith('/videos/') && !sessionId) {
+	if ((pathName.startsWith('/videos/') || pathName.startsWith('/api/')) && !sessionId) {
 		return new Response('Unauthorized', { status: 401 });
 	}
 

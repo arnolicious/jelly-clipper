@@ -23,6 +23,15 @@ Jelly-Clipper is an open-source web application that allows Jellyfin users to ea
   <img src="https://github.com/user-attachments/assets/21ff1121-516c-43ee-a14e-26039d05e2de" width="320" />
 </p>
 
+## ❓ How does this work?
+
+This tool takes a very simple approach:
+
+1. Jelly-Clipper downloads the original file from jellyfin
+2. The user can create their clip
+3. The clip will be saved indefinitely in their profile and is accessible for other members of the jellyfin instance
+4. The downloaded original files get cleaned up regularly, if they're older than 2 days, to save storage
+
 ## 🚀 Deployment
 
 ### Docker Installation
