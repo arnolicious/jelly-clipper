@@ -30,7 +30,7 @@
         "eslint-plugin-svelte": "^3.5.1",
         "formsnap": "^2.0.1",
         "globals": "^16.1.0",
-        "lucide-svelte": "^0.507.0",
+        "lucide-svelte": "^0.508.0",
         "mode-watcher": "^1.0.6",
         "prettier": "^3.5.3",
         "prettier-plugin-svelte": "^3.3.3",
@@ -709,7 +709,7 @@
 
     "lru-cache": ["lru-cache@10.4.3", "", {}, "sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ=="],
 
-    "lucide-svelte": ["lucide-svelte@0.507.0", "", { "peerDependencies": { "svelte": "^3 || ^4 || ^5.0.0-next.42" } }, "sha512-qJRbz1dWyTzV05VaXIKhPeQ6mGBTIbKI05YNymym6QZSsn/mt7P154qr4SfKl+SEJlOmYPbHVjK1D1qZwa3r3w=="],
+    "lucide-svelte": ["lucide-svelte@0.508.0", "", { "peerDependencies": { "svelte": "^3 || ^4 || ^5.0.0-next.42" } }, "sha512-Qbj38WdAswGKYpGmJG8h0yKHWiYSO8uAZQ7seLMv9DxX8JRVi/eXUr+HuZpfLdnu3Hun0ix+K3WswCFrPNKu1A=="],
 
     "magic-string": ["magic-string@0.30.17", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.0" } }, "sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA=="],
 
