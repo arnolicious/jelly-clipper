@@ -37,5 +37,16 @@ export const POST: RequestHandler = () => {
 				return;
 			}
 		});
+
+		downloadProgressEventEmitter.on(
+			DOWNLOAD_EVENTS.ERROR,
+			(data: DownloadProgressTypes['ERROR']) => {
+				const { error } = emit('error', JSON.stringify(data));
+				if (error) {
+					console.error('Error Event', error);
+					return;
+				}
+			}
+		);
 	});
 };

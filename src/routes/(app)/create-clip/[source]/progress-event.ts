@@ -5,7 +5,8 @@ export const downloadProgressEventEmitter = new EventEmitter();
 export const DOWNLOAD_EVENTS = {
 	START: 'start',
 	PROGRESS_UPDATE: 'progress-update',
-	END: 'end'
+	END: 'end',
+	ERROR: 'error'
 };
 
 export type DownloadProgressTypes = {
@@ -19,6 +20,9 @@ export type DownloadProgressTypes = {
 	};
 	// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 	END: {};
+	ERROR: {
+		errorMessage: string;
+	};
 };
 
 export type DownloadProgressDataType = DownloadProgressTypes[keyof DownloadProgressTypes];

@@ -2,8 +2,9 @@ import { validateSetup } from '$lib/server/db/setup';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getItemInfo, getVideoStream } from '$lib/server/jellyfin/jellyfin.svelte';
-import type { SourceInfo } from './types';
+import type { SourceInfo } from './types'; // Assuming FileInfo is defined in types.ts or here
 import { createWriteStream, Stats, statSync } from 'node:fs';
+import { unlink } from 'node:fs/promises';
 import { ASSETS_ORIGINALS_DIR } from '$lib/constants';
 import { ensureStaticFoldersExist } from '$lib/server/server-utils';
 import {
@@ -11,6 +12,10 @@ import {
 	downloadProgressEventEmitter,
 	type DownloadProgressTypes
 } from './progress-event';
+import path from 'node:path';
+
+// If FileInfo is not in types.ts, you might need to define it, e.g.:
+// type FileInfo = Stats & { name: string; extension: string };
 
 // Throttled logging utility
 function emitThrottledProgressEvents(intervalMs = 500) {
@@ -19,8 +24,7 @@ function emitThrottledProgressEvents(intervalMs = 500) {
 	return (data: DownloadProgressTypes['PROGRESS_UPDATE']) => {
 		const now = Date.now();
 		if (now - lastLogTime >= intervalMs) {
-			console.log(data);
-
+			// console.log(data); // Logging progress data can be verbose
 			// Emit event to trigger SSE update in /api/download-progress
 			downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.PROGRESS_UPDATE, data);
 
@@ -28,7 +32,6 @@ function emitThrottledProgressEvents(intervalMs = 500) {
 		}
 	};
 }
-
 type FileInfo = Stats & { name: string; extension: string };
 
 export const load: PageServerLoad = async (event) => {
@@ -38,12 +41,13 @@ export const load: PageServerLoad = async (event) => {
 		return error(400, 'Jelly-Clipper is not setup yet');
 	}
 	const jellyfinAddress = validatedSetup.serverAddress;
-	let sourceInfo: SourceInfo;
-	const decoded = decodeURIComponent(event.params.source);
-	ensureStaticFoldersExist();
+	const decodedSource = decodeURIComponent(event.params.source);
+	ensureStaticFoldersExist(); // Ensure this is robust or wrapped if it can throw
 
-	if (decoded.includes('/')) {
-		const url = new URL(decoded);
+	let sourceInfo: SourceInfo;
+
+	if (decodedSource.includes('/')) {
+		const url = new URL(decodedSource);
 		const pathname = url.pathname;
 		const params = url.searchParams;
 		const sourceId = pathname.split('Items/')[1].split('/')[0];
@@ -56,93 +60,132 @@ export const load: PageServerLoad = async (event) => {
 			apiKey
 		};
 	} else {
-		return error(400, 'Source is not a URL');
+		// Consider if this case should throw an error earlier or be handled differently
+		return error(400, 'Invalid source format: Expected a URL path.');
 	}
 
-	const sourceInfoPromise = getItemInfo(
-		jellyfinAddress,
-		user.jellyfinAccessToken,
-		sourceInfo.sourceId
-	);
+	const filePath = path.join(ASSETS_ORIGINALS_DIR, `${sourceInfo.sourceId}.mp4`);
+	let mediaItemInfo;
 
 	try {
-		const fileInfo = statSync(`${ASSETS_ORIGINALS_DIR}/${sourceInfo.sourceId}.mp4`);
+		mediaItemInfo = await getItemInfo(
+			jellyfinAddress,
+			user.jellyfinAccessToken,
+			sourceInfo.sourceId
+		);
+	} catch (infoErr) {
+		console.error(`Failed to get item info for ${sourceInfo.sourceId}:`, infoErr);
+		// No download event emitter here as download hasn't started or is for a different system part
+		throw error(
+			500,
+			`Failed to retrieve media information from Jellyfin: ${(infoErr as Error).message}`
+		);
+	}
+
+	try {
+		const existingFileStats = statSync(filePath);
 		return {
 			user,
 			serverAddress: jellyfinAddress,
-			sourceInfo: sourceInfoPromise,
+			sourceInfo: mediaItemInfo, // Return the fetched info
 			fileInfo: {
 				name: sourceInfo.sourceId,
 				extension: 'mp4',
-				...fileInfo
+				...existingFileStats
 			}
 		};
 	} catch (_e) {
-		// File does not exist
+		// File does not exist, proceed to download.
 	}
 
-	// Download the media file with throttled progress tracking
-	const response = await getVideoStream(
-		jellyfinAddress,
-		user.jellyfinAccessToken,
-		sourceInfo.sourceId
-	);
+	// Download logic starts here
+	try {
+		const totalSize = mediaItemInfo.MediaSources?.[0].Size ?? 0;
+		downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.START, {
+			totalSizeBytes: totalSize
+		} satisfies DownloadProgressTypes['START']);
+		console.log(
+			`Starting download for ${sourceInfo.sourceId}. Total file size: ${(totalSize / 1000000).toFixed(2)} MB`
+		);
 
-	const awaitedInfo = await sourceInfoPromise;
-	const totalSize = awaitedInfo.MediaSources?.[0].Size ?? 0;
-	downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.START, {
-		totalSizeBytes: totalSize
-	} satisfies DownloadProgressTypes['START']);
-	console.log(`Starting download. Total file size: ${(totalSize / 1000000).toFixed(2)} MB`);
+		const response = await getVideoStream(
+			jellyfinAddress,
+			user.jellyfinAccessToken,
+			sourceInfo.sourceId
+		);
 
-	let downloadedSize = 0;
-	const fileStream = createWriteStream(`${ASSETS_ORIGINALS_DIR}/${sourceInfo.sourceId}.mp4`);
-	const responseStream = response.data as unknown as NodeJS.ReadableStream;
+		// Assuming getVideoStream throws on HTTP errors or response.data is correctly a stream
+		const responseStream = response.data as unknown as NodeJS.ReadableStream;
+		const fileStream = createWriteStream(filePath);
+		let downloadedSize = 0;
+		const progressEmitter = emitThrottledProgressEvents(1000); // Emit progress more frequently if desired
 
-	// Create a throttled logger that logs every 5 seconds
-	const progressEmitter = emitThrottledProgressEvents(5000);
+		const downloadPromise = new Promise<FileInfo>((resolve, reject) => {
+			responseStream.on('data', (chunk) => {
+				downloadedSize += chunk.length;
+				const progress = totalSize > 0 ? Math.round((downloadedSize / totalSize) * 100) : 0;
+				progressEmitter({
+					percentage: progress,
+					totalSizeBytes: totalSize,
+					downloadedBytes: downloadedSize
+				});
+			});
 
-	const fileInfoPromise = new Promise<FileInfo>((resolve, reject) => {
-		responseStream.on('data', (chunk) => {
-			downloadedSize += chunk.length;
-			const progress = totalSize > 0 ? Math.round((downloadedSize / totalSize) * 100) : 0;
+			responseStream.pipe(fileStream);
 
-			// Use throttled logging instead of console.log
-			// throttledLog(
-			// 	`Download Progress: ${progress}% (${(downloadedSize / 1000000).toFixed(2)}/${(totalSize / 1000000).toFixed(2)} MB)`
-			// );
-			progressEmitter({
-				percentage: progress,
-				totalSizeBytes: totalSize,
-				downloadedBytes: downloadedSize
+			fileStream.on('finish', () => {
+				try {
+					const finalFileStats = statSync(filePath);
+					console.log(`Download completed successfully for ${sourceInfo.sourceId}.`);
+					downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.END);
+					resolve({ name: sourceInfo.sourceId, extension: 'mp4', ...finalFileStats });
+				} catch (statErr) {
+					console.error(`Error stating file ${filePath} after download:`, statErr);
+					downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.ERROR, {
+						message: (statErr as Error).message || 'Error stating file post-download'
+					});
+					reject(statErr);
+				}
+			});
+
+			fileStream.on('error', (err) => {
+				console.error(`File stream error for ${filePath}:`, err);
+				downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.ERROR, {
+					message: err.message || 'File stream error'
+				});
+				reject(err);
+			});
+
+			responseStream.on('error', (err) => {
+				console.error(`Response stream error during download for ${sourceInfo.sourceId}:`, err);
+				downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.ERROR, {
+					message: err.message || 'Response stream error'
+				});
+				reject(err);
 			});
 		});
 
-		responseStream.pipe(fileStream);
-
-		fileStream.on('finish', () => {
-			try {
-				const finalFileInfo: FileInfo = {
-					name: sourceInfo.sourceId,
-					extension: 'mp4',
-					...statSync(`${ASSETS_ORIGINALS_DIR}/${sourceInfo.sourceId}.mp4`)
-				};
-				console.log('Download completed successfully.');
-				downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.END);
-				resolve(finalFileInfo);
-			} catch (err) {
-				reject(err);
-			}
+		return {
+			user,
+			serverAddress: jellyfinAddress,
+			sourceInfo: mediaItemInfo,
+			fileInfo: downloadPromise // SvelteKit will await this promise
+		};
+	} catch (downloadErr) {
+		console.error(`Error during download process for ${sourceInfo.sourceId}:`, downloadErr);
+		downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.ERROR, {
+			message: (downloadErr as Error).message || 'Download process failed'
 		});
 
-		fileStream.on('error', reject);
-		responseStream.on('error', reject);
-	});
+		// Attempt to clean up partially downloaded file
+		try {
+			await unlink(filePath);
+			console.log(`Cleaned up partially downloaded file: ${filePath}`);
+		} catch (cleanupErr) {
+			// Log if cleanup fails but don't let it mask the original download error
+			console.error(`Failed to clean up partial file ${filePath}:`, cleanupErr);
+		}
 
-	return {
-		user,
-		serverAddress: jellyfinAddress,
-		fileInfo: fileInfoPromise,
-		sourceInfo: sourceInfoPromise
-	};
+		throw error(500, `Failed to download media: ${(downloadErr as Error).message}`);
+	}
 };
