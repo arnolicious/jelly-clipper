@@ -4,6 +4,10 @@
     "config:recommended",
     "npm:unpublishSafe"
   ],
+  "schedule": [
+    "* 0-3 * * 1"
+  ],
+  "prConcurrentLimit": 20,
   "packageRules": [
     {
       "matchPackagePatterns": [
