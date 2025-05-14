@@ -84,16 +84,27 @@ export const load: PageServerLoad = async (event) => {
 
 	try {
 		const existingFileStats = statSync(filePath);
-		return {
-			user,
-			serverAddress: jellyfinAddress,
-			sourceInfo: mediaItemInfo, // Return the fetched info
-			fileInfo: {
-				name: sourceInfo.sourceId,
-				extension: 'mp4',
-				...existingFileStats
-			}
-		};
+
+		// Check if file size matches the expected size
+		if (existingFileStats.size === mediaItemInfo.MediaSources?.[0].Size) {
+			return {
+				user,
+				serverAddress: jellyfinAddress,
+				sourceInfo: mediaItemInfo, // Return the fetched info
+				fileInfo: {
+					name: sourceInfo.sourceId,
+					extension: 'mp4',
+					...existingFileStats
+				}
+			};
+		} else {
+			console.log(
+				`File size mismatch for ${sourceInfo.sourceId}. Expected: ${mediaItemInfo.MediaSources?.[0].Size}, Found: ${existingFileStats.size}`
+			);
+			// Clean up the existing file if sizes don't match
+			await unlink(filePath);
+			console.log(`Removed mismatched file: ${filePath}`);
+		}
 	} catch (_e) {
 		// File does not exist, proceed to download.
 	}
@@ -124,6 +135,7 @@ export const load: PageServerLoad = async (event) => {
 			responseStream.on('data', (chunk) => {
 				downloadedSize += chunk.length;
 				const progress = totalSize > 0 ? Math.round((downloadedSize / totalSize) * 100) : 0;
+
 				progressEmitter({
 					percentage: progress,
 					totalSizeBytes: totalSize,
