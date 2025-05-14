@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { navigating, page } from '$app/stores';
+	import { navigating, page } from '$app/state';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import Label from '$lib/components/ui/label/label.svelte';
@@ -10,16 +10,16 @@
 	};
 	let { data }: Props = $props();
 
-	let paramSourceUrl = $page.url.searchParams.get('sourceUrl');
+	let paramSourceUrl = page.url.searchParams.get('sourceUrl');
 
 	let sourceUrl = $state(paramSourceUrl ?? '');
 
-	let isNavigating = $derived($navigating !== null);
+	let isNavigating = $derived(navigating !== null);
 
 	let href = $derived(
 		sourceUrl.length === 0 || isNavigating
 			? undefined
-			: `/create-clip/${encodeURIComponent(sourceUrl)}`
+			: `/prepare-clip/${encodeURIComponent(sourceUrl)}`
 	);
 
 	let buttonIsDisabled = $derived(isNavigating || sourceUrl.length === 0);
