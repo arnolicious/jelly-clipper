@@ -1,7 +1,7 @@
 import { validateSetup } from '$lib/server/db/setup';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getItemInfo, getVideoStream } from '$lib/server/jellyfin/jellyfin.svelte';
+import { getItemInfo, getPlaybackInfo, getVideoStream } from '$lib/server/jellyfin/jellyfin.svelte';
 import type { SourceInfo } from './types'; // Assuming FileInfo is defined in types.ts or here
 import { createWriteStream, Stats, statSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
@@ -13,6 +13,7 @@ import {
 	type DownloadProgressTypes
 } from './progress-event';
 import path from 'node:path';
+import type { BaseItemDto, PlaybackInfoResponse } from '@jellyfin/sdk/lib/generated-client/models';
 
 // If FileInfo is not in types.ts, you might need to define it, e.g.:
 // type FileInfo = Stats & { name: string; extension: string };
@@ -46,12 +47,33 @@ export const load: PageServerLoad = async (event) => {
 
 	let sourceInfo: SourceInfo;
 
+	// Extract track parameters from URLParams
+	let videoStreamIndex: null | number = null;
+	let audioStreamIndex: null | number = null;
+	let subtitleStreamIndex: null | number = null;
+
 	if (decodedSource.includes('/')) {
 		const url = new URL(decodedSource);
 		const pathname = url.pathname;
 		const params = url.searchParams;
 		const sourceId = pathname.split('Items/')[1].split('/')[0];
 		const apiKey = params.get('api_key');
+
+		const videoStreamIndexParam = params.get('videoStreamIndex');
+		const audioStreamIndexParam = params.get('audioStreamIndex');
+		const subtitleStreamIndexParam = params.get('subtitleStreamIndex');
+
+		if (videoStreamIndexParam) {
+			videoStreamIndex = Number(videoStreamIndexParam);
+		}
+
+		if (audioStreamIndexParam) {
+			audioStreamIndex = Number(audioStreamIndexParam);
+		}
+		if (subtitleStreamIndexParam && subtitleStreamIndexParam !== 'none') {
+			subtitleStreamIndex = Number(subtitleStreamIndexParam);
+		}
+
 		if (!apiKey) {
 			return error(400, 'Source is not a URL');
 		}
@@ -65,7 +87,8 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	const filePath = path.join(ASSETS_ORIGINALS_DIR, `${sourceInfo.sourceId}.mp4`);
-	let mediaItemInfo;
+	let mediaItemInfo: BaseItemDto | null = null;
+	let playbackInfo: PlaybackInfoResponse | null = null;
 
 	try {
 		mediaItemInfo = await getItemInfo(
@@ -73,6 +96,16 @@ export const load: PageServerLoad = async (event) => {
 			user.jellyfinAccessToken,
 			sourceInfo.sourceId
 		);
+		playbackInfo = await getPlaybackInfo({
+			accessToken: user.jellyfinAccessToken,
+			itemId: sourceInfo.sourceId,
+			serverAddress: jellyfinAddress,
+			mediaSourceId: mediaItemInfo.MediaSources?.[0].Id ?? undefined,
+			audioStreamIndex,
+			videoStreamIndex,
+			subtitleStreamIndex
+		});
+		console.log('Playback Info:', playbackInfo);
 	} catch (infoErr) {
 		console.error(`Failed to get item info for ${sourceInfo.sourceId}:`, infoErr);
 		// No download event emitter here as download hasn't started or is for a different system part
@@ -116,14 +149,21 @@ export const load: PageServerLoad = async (event) => {
 			totalSizeBytes: totalSize
 		} satisfies DownloadProgressTypes['START']);
 		console.log(
-			`Starting download for ${sourceInfo.sourceId}. Total file size: ${(totalSize / 1000000).toFixed(2)} MB`
+			`Starting download for ${sourceInfo.sourceId}. Total file size: ${(totalSize / 1000000).toFixed(2)} MB
+			Video Stream Index: ${videoStreamIndex}
+			Audio Stream Index: ${audioStreamIndex}
+			Subtitle Stream Index: ${subtitleStreamIndex}`
 		);
-
-		const response = await getVideoStream(
-			jellyfinAddress,
-			user.jellyfinAccessToken,
-			sourceInfo.sourceId
-		);
+		const response = await getVideoStream({
+			serverAddress: jellyfinAddress,
+			mediaSourceId: mediaItemInfo.MediaSources?.[0].Id ?? undefined,
+			accessToken: user.jellyfinAccessToken,
+			itemId: sourceInfo.sourceId,
+			videoStreamIndex,
+			audioStreamIndex,
+			subtitleStreamIndex,
+			playSessionId: playbackInfo?.PlaySessionId ?? undefined
+		});
 
 		// Assuming getVideoStream throws on HTTP errors or response.data is correctly a stream
 		const responseStream = response.data as unknown as NodeJS.ReadableStream;

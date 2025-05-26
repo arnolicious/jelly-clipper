@@ -14,7 +14,7 @@
 
 	let sourceUrl = $state(paramSourceUrl ?? '');
 
-	let isNavigating = $derived(navigating !== null);
+	let isNavigating = $derived(!!navigating.to);
 
 	let href = $derived(
 		sourceUrl.length === 0 || isNavigating
