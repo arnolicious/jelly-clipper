@@ -6,7 +6,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import type { Clip } from '$lib/types';
 	import DeleteConfirmation from '$lib/components/delete-confirmation/delete-confirmation.svelte';
-	import { invalidate } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 
 	type Props = {
 		data: PageData;
@@ -27,10 +27,10 @@
 			});
 
 			if (response.ok) {
+				await invalidateAll();
 				toast.success('Clip deleted successfully', {
 					id: toastId
 				});
-				invalidate('my-clips');
 			} else {
 				toast.error('Failed to delete clip', {
 					description: 'Please try again later.',
