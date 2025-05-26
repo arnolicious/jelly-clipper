@@ -48,6 +48,13 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 		proc
 			.setStartTime(body.start)
 			.setDuration(duration)
+			.videoCodec('libx264')
+			.outputOptions([
+				'-pix_fmt yuv420p', // Force 8-bit pixel format (yuv420p) for compatibility
+				'-crf 23',
+				'-preset medium'
+			])
+			.audioCodec('aac')
 			.saveToFile(`${ASSETS_CLIPS_DIR}/${clipId}.mp4`)
 			.on('start', (commandLine) => {
 				console.log('Spawned Ffmpeg with command: ' + commandLine);
