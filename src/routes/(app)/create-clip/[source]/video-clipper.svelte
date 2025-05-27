@@ -1,10 +1,5 @@
 <script lang="ts" module>
 	import { MediaRemoteControl } from 'vidstack';
-
-	type Item = {
-		value: string;
-		label: string;
-	};
 </script>
 
 <script lang="ts">
@@ -20,18 +15,13 @@
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import TimelineClipper from './timeline-clipper.svelte';
-	import type { Track } from './+page.server';
-	import Label from '$lib/components/ui/label/label.svelte';
-	import * as Select from '$lib/components/ui/select';
 
 	type Props = {
 		sourceId: string;
 		sourceInfo: BaseItemDto;
-		audioTracks?: Track[];
-		subtitleTracks?: Track[];
 	};
 
-	let { sourceId, sourceInfo, audioTracks, subtitleTracks }: Props = $props();
+	let { sourceId, sourceInfo }: Props = $props();
 
 	let player: MediaPlayerElement | null = $state(null);
 	const remoteControl = new MediaRemoteControl();
@@ -122,7 +112,6 @@
 			error: 'Failed to create clip'
 		});
 	};
-	$inspect('Audio Tracks', player ? (player as MediaPlayerElement).audioTracks : null);
 
 	$effect(() => {
 		if (!player) return;
@@ -138,76 +127,8 @@
 
 	let currentTime = $state<number>(0);
 	let isPaused = $state(true);
-
-	const audioTrackItems =
-		audioTracks?.map((audioTrack) => ({
-			value: audioTrack.index.toString(),
-			label: audioTrack.title ?? audioTrack.language ?? `Audio Track ${audioTrack.index}`
-		})) ?? [];
-
-	const subtitleTrackItems = [
-		{ value: 'none', label: 'No Subtitles' },
-		...(subtitleTracks?.map((subtitleTrack) => ({
-			value: subtitleTrack.index.toString(),
-			label:
-				subtitleTrack.title ?? subtitleTrack.language ?? `Subtitle Track ${subtitleTrack.index}`
-		})) ?? [])
-	];
-
-	let selectedAudioTrack = $state<Item | null>(audioTrackItems?.[0] ?? null);
-	let selectedSubtitleTrack = $state<Item | null>(subtitleTrackItems?.[0] ?? null);
 </script>
 
-<!-- <div class="flex flex-row gap-4 pb-4">
-	<div class="flex flex-col gap-2">
-		<Label>Audio track</Label>
-		<Select.Root
-			bind:value={
-				() => selectedAudioTrack?.value,
-				(newValue) =>
-					(selectedAudioTrack = audioTrackItems?.find((item) => item.value === newValue) ?? null)
-			}
-			items={audioTrackItems}
-			type="single"
-		>
-			<Select.Trigger class="w-[400px]">
-				{selectedAudioTrack?.label ?? 'Select Audio Track'}
-			</Select.Trigger>
-			<Select.Content>
-				{#each audioTrackItems as item (item.value)}
-					<Select.Item value={item.value} class="w-full">
-						{item.label}
-					</Select.Item>
-				{/each}
-			</Select.Content>
-		</Select.Root>
-	</div>
-
-	<div class="flex flex-col gap-2">
-		<Label>Subtitles</Label>
-		<Select.Root
-			bind:value={
-				() => selectedSubtitleTrack?.value,
-				(newValue) =>
-					(selectedSubtitleTrack =
-						subtitleTrackItems?.find((item) => item.value === newValue) ?? null)
-			}
-			items={subtitleTrackItems}
-			type="single"
-		>
-			<Select.Trigger class="w-[400px]">
-				{selectedSubtitleTrack?.label ?? 'Select Subtitle Track'}
-			</Select.Trigger>
-			<Select.Content>
-				{#each subtitleTrackItems as item (item.value)}
-					<Select.Item value={item.value} class="w-full">
-						{item.label}
-					</Select.Item>
-				{/each}
-			</Select.Content>
-		</Select.Root>
-	</div>
-</div> -->
 <!-- svelte-ignore event_directive_deprecated -->
 <div class="w-full h-full flex flex-col justify-start items-center max-w-[900px]">
 	<div class="aspect-video w-[inherit]">
