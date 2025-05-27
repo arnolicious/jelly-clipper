@@ -1,7 +1,7 @@
-import { Jellyfin, type JellyfinParameters } from '@jellyfin/sdk';
+import { type JellyfinParameters, Jellyfin } from '@jellyfin/sdk';
 import { getLibraryApi } from '@jellyfin/sdk/lib/utils/api/library-api';
 import { getVideosApi } from '@jellyfin/sdk/lib/utils/api/videos-api';
-import { getMediaInfoApi } from '@jellyfin/sdk/lib/utils/api';
+import { getItemsApi, getMediaInfoApi } from '@jellyfin/sdk/lib/utils/api';
 import { getImageApi } from '@jellyfin/sdk/lib/utils/api/image-api';
 import { getUserLibraryApi } from '@jellyfin/sdk/lib/utils/api/user-library-api';
 
@@ -118,4 +118,106 @@ export async function getVideoStream(params: GetVideoStreamParams) {
 		},
 		{ responseType: 'stream' }
 	);
+}
+
+type DownloadItemParams = {
+	serverAddress: string;
+	accessToken: string;
+	itemId: string;
+};
+
+export async function downloadItem({ serverAddress, accessToken, itemId }: DownloadItemParams) {
+	const api = await getJellyfinApi(serverAddress, accessToken);
+	return getLibraryApi(api).getDownload(
+		{
+			itemId
+		},
+		{
+			responseType: 'stream'
+		}
+	);
+}
+
+type GetDownloadStreamUrlParams = {
+	serverAddress: string;
+	userId: string;
+	accessToken: string;
+	itemId: string;
+	subtitleStreamIndex?: number | null;
+	audioStreamIndex?: number | null;
+	mediaSourceId?: string;
+};
+
+export async function getDownloadStreamUrl({
+	userId,
+	accessToken,
+	itemId,
+	serverAddress,
+	audioStreamIndex = 0,
+	mediaSourceId,
+	subtitleStreamIndex = undefined
+}: GetDownloadStreamUrlParams) {
+	const api = await getJellyfinApi(serverAddress, accessToken);
+
+	// Initiate a playback session
+	const res = await getMediaInfoApi(api).getPlaybackInfo(
+		{
+			itemId
+		},
+		{
+			method: 'POST',
+			data: {
+				userId,
+				// deviceProfile,
+				subtitleStreamIndex,
+				startTimeTicks: 0,
+				isPlayback: true,
+				autoOpenLiveStream: true,
+				maxStreamingBitrate: undefined,
+				audioStreamIndex,
+				mediaSourceId,
+				alwaysBurnInSubtitleWhenTranscoding: true
+			}
+		}
+	);
+	const sessionId = res.data.PlaySessionId ?? null;
+	const mediaSource = res.data.MediaSources?.[0];
+	if (!mediaSource) {
+		throw new Error('No media source found for the item');
+	}
+
+	if (mediaSource.TranscodingUrl) {
+		return {
+			url: `${api.basePath}${mediaSource.TranscodingUrl}`,
+			sessionId,
+			mediaSource
+		};
+	}
+
+	const streamParams = new URLSearchParams({
+		mediaSourceId: mediaSource?.Id || '',
+		subtitleStreamIndex: subtitleStreamIndex?.toString() || '',
+		audioStreamIndex: audioStreamIndex?.toString() || '',
+		deviceId: api.deviceInfo.id,
+		api_key: api.accessToken,
+		startTimeTicks: '0',
+		maxStreamingBitrate: '',
+		userId: userId || '',
+		subtitleMethod: 'Embed',
+		static: 'false',
+		allowVideoStreamCopy: 'true',
+		allowAudioStreamCopy: 'true',
+		playSessionId: sessionId || '',
+		container: 'mp4',
+		audioCodec: 'aac',
+		subtitleCodec: 'srt'
+	});
+
+	const directPlayUrl = `${api.basePath}/Videos/${itemId}/stream?${streamParams.toString()}`;
+
+	return {
+		url: directPlayUrl,
+		sessionId,
+		mediaSource
+	};
 }

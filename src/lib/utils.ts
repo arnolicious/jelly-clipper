@@ -78,3 +78,16 @@ export function formatTimestamp(seconds: number): string {
 }
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+type Callback<TArgs> = (args: TArgs) => void;
+
+export const promisify =
+	<TArgs, TCallbackArgs>(
+		fn: (args: TArgs, cb: Callback<TCallbackArgs>) => void
+	): ((args: TArgs) => Promise<TCallbackArgs>) =>
+	(args: TArgs) =>
+		new Promise((resolve) => {
+			fn(args, (callbackArgs) => {
+				resolve(callbackArgs);
+			});
+		});

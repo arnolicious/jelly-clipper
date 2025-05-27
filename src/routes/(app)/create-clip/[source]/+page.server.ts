@@ -1,7 +1,7 @@
 import { validateSetup } from '$lib/server/db/setup';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getItemInfo, getPlaybackInfo, getVideoStream } from '$lib/server/jellyfin/jellyfin.svelte';
+import { getDownloadStreamUrl, getItemInfo } from '$lib/server/jellyfin/jellyfin.svelte';
 import type { SourceInfo } from './types'; // Assuming FileInfo is defined in types.ts or here
 import { createWriteStream, Stats, statSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
@@ -13,10 +13,9 @@ import {
 	type DownloadProgressTypes
 } from './progress-event';
 import path from 'node:path';
-import type { BaseItemDto, PlaybackInfoResponse } from '@jellyfin/sdk/lib/generated-client/models';
-
-// If FileInfo is not in types.ts, you might need to define it, e.g.:
-// type FileInfo = Stats & { name: string; extension: string };
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
+import { Readable } from 'node:stream';
+import type { ReadableStream } from 'node:stream/web';
 
 // Throttled logging utility
 function emitThrottledProgressEvents(intervalMs = 500) {
@@ -33,7 +32,19 @@ function emitThrottledProgressEvents(intervalMs = 500) {
 		}
 	};
 }
-type FileInfo = Stats & { name: string; extension: string };
+
+export type Track = {
+	index: number;
+	language?: string;
+	title?: string;
+};
+
+type FileInfo = Stats & {
+	name: string;
+	extension: string;
+	audioTracks?: Track[];
+	subtitleTracks?: Track[];
+};
 
 export const load: PageServerLoad = async (event) => {
 	const validatedSetup = await validateSetup();
@@ -87,8 +98,11 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	const filePath = path.join(ASSETS_ORIGINALS_DIR, `${sourceInfo.sourceId}.mp4`);
+	// const transcodedFilePath = path.join(
+	// 	ASSETS_ORIGINALS_DIR,
+	// 	`transcoded-${sourceInfo.sourceId}.mp4`
+	// );
 	let mediaItemInfo: BaseItemDto | null = null;
-	let playbackInfo: PlaybackInfoResponse | null = null;
 
 	try {
 		mediaItemInfo = await getItemInfo(
@@ -96,16 +110,6 @@ export const load: PageServerLoad = async (event) => {
 			user.jellyfinAccessToken,
 			sourceInfo.sourceId
 		);
-		playbackInfo = await getPlaybackInfo({
-			accessToken: user.jellyfinAccessToken,
-			itemId: sourceInfo.sourceId,
-			serverAddress: jellyfinAddress,
-			mediaSourceId: mediaItemInfo.MediaSources?.[0].Id ?? undefined,
-			audioStreamIndex,
-			videoStreamIndex,
-			subtitleStreamIndex
-		});
-		console.log('Playback Info:', playbackInfo);
 	} catch (infoErr) {
 		console.error(`Failed to get item info for ${sourceInfo.sourceId}:`, infoErr);
 		// No download event emitter here as download hasn't started or is for a different system part
@@ -120,6 +124,7 @@ export const load: PageServerLoad = async (event) => {
 
 		// Check if file size matches the expected size
 		if (existingFileStats.size === mediaItemInfo.MediaSources?.[0].Size) {
+			// Get track info
 			return {
 				user,
 				serverAddress: jellyfinAddress,
@@ -154,19 +159,22 @@ export const load: PageServerLoad = async (event) => {
 			Audio Stream Index: ${audioStreamIndex}
 			Subtitle Stream Index: ${subtitleStreamIndex}`
 		);
-		const response = await getVideoStream({
+		const { mediaSource, sessionId, url } = await getDownloadStreamUrl({
+			userId: user.jellyfinUserId,
 			serverAddress: jellyfinAddress,
-			mediaSourceId: mediaItemInfo.MediaSources?.[0].Id ?? undefined,
 			accessToken: user.jellyfinAccessToken,
 			itemId: sourceInfo.sourceId,
-			videoStreamIndex,
+			mediaSourceId: mediaItemInfo.MediaSources?.[0].Id ?? undefined,
 			audioStreamIndex,
-			subtitleStreamIndex,
-			playSessionId: playbackInfo?.PlaySessionId ?? undefined
+			subtitleStreamIndex
 		});
 
-		// Assuming getVideoStream throws on HTTP errors or response.data is correctly a stream
-		const responseStream = response.data as unknown as NodeJS.ReadableStream;
+		console.log(`Download URL: ${url}`);
+
+		// Download the url as a stream
+		const response = await fetch(url);
+
+		const responseStream = Readable.fromWeb(response.body as ReadableStream);
 		const fileStream = createWriteStream(filePath);
 		let downloadedSize = 0;
 		const progressEmitter = emitThrottledProgressEvents(1000); // Emit progress more frequently if desired
@@ -185,12 +193,61 @@ export const load: PageServerLoad = async (event) => {
 
 			responseStream.pipe(fileStream);
 
-			fileStream.on('finish', () => {
+			fileStream.on('finish', async () => {
 				try {
 					const finalFileStats = statSync(filePath);
 					console.log(`Download completed successfully for ${sourceInfo.sourceId}.`);
-					downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.END);
-					resolve({ name: sourceInfo.sourceId, extension: 'mp4', ...finalFileStats });
+
+					// // Get Audio track and Subtitle track info from file with ffmpeg
+					// const data = await ffprobe(filePath);
+					// const audioTracks = data.streams
+					// 	.filter((stream) => stream.codec_type === 'audio')
+					// 	.map((stream) => ({
+					// 		index: stream.index,
+					// 		language: stream.tags?.language,
+					// 		title: stream.tags?.title
+					// 	}));
+					// const subtitleTracks = data.streams
+					// 	.filter((stream) => stream.codec_type === 'subtitle')
+					// 	.map((stream) => ({
+					// 		index: stream.index,
+					// 		language: stream.tags?.language,
+					// 		title: stream.tags?.title
+					// 	}));
+
+					// console.log('Audio tracks:', audioTracks);
+					// console.log('Subtitle tracks:', subtitleTracks);
+
+					// // Use ffmpeg to transcode the video to a widely compatible format
+					// ffmpeg(filePath)
+					// 	.outputOptions('-c:v', 'libx264') // Use H.264 codec for video
+					// 	.outputOptions('-c:a', 'aac') // Use AAC codec for audio
+					// 	.outputOptions('-movflags', 'faststart') // Optimize for web streaming
+					// 	.save(transcodedFilePath)
+					// 	.on('start', (commandLine) => {
+					// 		console.log('[Transcode] Ffmpeg command: ' + commandLine);
+					// 	})
+					// 	.on('error', (err) => {
+					// 		console.error('An error occurred during transcoding:', err.message);
+					// 		downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.ERROR, {
+					// 			message: err.message || 'Transcoding error'
+					// 		});
+					// 		reject(err);
+					// 	})
+					// 	.on('end', () => {
+					// 		console.log('Transcoding finished successfully.');
+					// 		// Delete the original file after transcoding
+					// 		unlinkSync(filePath);
+					// 		// Rename the transcoded file to the original file name
+					// 		renameSync(transcodedFilePath, filePath);
+
+					// 		downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.END);
+					resolve({
+						name: sourceInfo.sourceId,
+						extension: 'mp4',
+						...finalFileStats
+					});
+					// });
 				} catch (statErr) {
 					console.error(`Error stating file ${filePath} after download:`, statErr);
 					downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.ERROR, {
