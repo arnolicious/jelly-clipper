@@ -1,4 +1,5 @@
 import { ASSETS_CLIPS_DIR, ASSETS_ORIGINALS_DIR, ASSETS_ROOT_DIR } from '$lib/constants';
+import ffmpeg, { type FfprobeData } from 'fluent-ffmpeg';
 import { existsSync, mkdirSync } from 'node:fs';
 
 /**
@@ -21,3 +22,8 @@ export function ensureStaticFoldersExist() {
 		mkdirSync(ASSETS_CLIPS_DIR);
 	}
 }
+
+export const ffprobe = (input: string, options: string[] = []): Promise<FfprobeData> =>
+	new Promise((resolve, reject) =>
+		ffmpeg.ffprobe(input, options, (error, data) => (error ? reject(error) : resolve(data)))
+	);

@@ -24,7 +24,7 @@ export const POST: RequestHandler = () => {
 			(data: DownloadProgressTypes['PROGRESS_UPDATE']) => {
 				const { error } = emit('data', JSON.stringify(data));
 				if (error) {
-					console.error('Progress Event', error);
+					// console.error('Progress Event', error);
 					return;
 				}
 			}
@@ -33,7 +33,7 @@ export const POST: RequestHandler = () => {
 		downloadProgressEventEmitter.on(DOWNLOAD_EVENTS.END, () => {
 			const { error } = emit('end', '{}');
 			if (error) {
-				console.error('End Event', error);
+				// console.error('End Event', error);
 				return;
 			}
 		});
@@ -43,7 +43,7 @@ export const POST: RequestHandler = () => {
 			(data: DownloadProgressTypes['ERROR']) => {
 				const { error } = emit('error', JSON.stringify(data));
 				if (error) {
-					console.error('Error Event', error);
+					// console.error('Error Event', error);
 					return;
 				}
 			}
