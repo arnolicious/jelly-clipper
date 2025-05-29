@@ -1,6 +1,6 @@
 {
 	"name": "jelly-clipper",
-	"version": "0.1.0",
+	"version": "0.4.0",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
@@ -17,7 +17,7 @@
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "^5.2.12",
-		"@sveltejs/kit": "^2.21.0",
+		"@sveltejs/kit": "^2.21.1",
 		"@sveltejs/vite-plugin-svelte": "^5.0.3",
 		"autoprefixer": "^10.4.21",
 		"bits-ui": "^1.4.8",
@@ -32,9 +32,9 @@
 		"mode-watcher": "^1.0.7",
 		"prettier": "^3.5.3",
 		"prettier-plugin-svelte": "^3.4.0",
-		"svelte": "^5.30.0",
-		"svelte-check": "^4.2.0",
-		"svelte-sonner": "^1.0.1",
+		"svelte": "^5.33.2",
+		"svelte-check": "^4.2.1",
+		"svelte-sonner": "^1.0.3",
 		"sveltekit-sse": "^0.13.19",
 		"sveltekit-superforms": "^2.25.0",
 		"tailwind-merge": "^2.6.0",
