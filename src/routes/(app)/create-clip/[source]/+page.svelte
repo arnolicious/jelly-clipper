@@ -39,6 +39,8 @@
 			progress.totalSizeBytes / 1000000
 		).toFixed(2)} MB)`;
 	}
+
+	let promises = $derived(Promise.all([data.fileInfo, data.subtitleTracks] as const));
 </script>
 
 {#await data.sourceInfo}
@@ -49,7 +51,7 @@
 		</span>
 	</div>
 {:then sourceInfo}
-	{#await data.fileInfo}
+	{#await promises}
 		{#if $downloadProgress && 'errorMessage' in $downloadProgress}
 			<div class="flex flex-col gap-8 justify-center items-center">
 				<span class="text-slate-400 italic">
@@ -73,8 +75,8 @@
 				</span>
 			</div>
 		{/if}
-	{:then fileInfo}
-		<VideoClipper sourceId={fileInfo.name} {sourceInfo} />
+	{:then [fileInfo, subtitleTracks]}
+		<VideoClipper sourceId={fileInfo.name} {sourceInfo} {subtitleTracks} />
 	{:catch error}
 		<div class="flex flex-col gap-8 justify-center items-center">
 			<span class="text-slate-400 italic">

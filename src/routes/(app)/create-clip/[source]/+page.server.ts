@@ -1,7 +1,11 @@
 import { validateSetup } from '$lib/server/db/setup';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getItemInfo, getVideoStream } from '$lib/server/jellyfin/jellyfin.svelte';
+import {
+	getDownloadStreamUrl,
+	getItemInfo,
+	getSubtitleTracks
+} from '$lib/server/jellyfin/jellyfin.svelte';
 import type { SourceInfo } from './types'; // Assuming FileInfo is defined in types.ts or here
 import { createWriteStream, Stats, statSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
@@ -13,9 +17,9 @@ import {
 	type DownloadProgressTypes
 } from './progress-event';
 import path from 'node:path';
-
-// If FileInfo is not in types.ts, you might need to define it, e.g.:
-// type FileInfo = Stats & { name: string; extension: string };
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
+import { Readable } from 'node:stream';
+import type { ReadableStream } from 'node:stream/web';
 
 // Throttled logging utility
 function emitThrottledProgressEvents(intervalMs = 500) {
@@ -24,7 +28,6 @@ function emitThrottledProgressEvents(intervalMs = 500) {
 	return (data: DownloadProgressTypes['PROGRESS_UPDATE']) => {
 		const now = Date.now();
 		if (now - lastLogTime >= intervalMs) {
-			// console.log(data); // Logging progress data can be verbose
 			// Emit event to trigger SSE update in /api/download-progress
 			downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.PROGRESS_UPDATE, data);
 
@@ -32,7 +35,20 @@ function emitThrottledProgressEvents(intervalMs = 500) {
 		}
 	};
 }
-type FileInfo = Stats & { name: string; extension: string };
+
+export type Track = {
+	index: number;
+	language: string;
+	title: string;
+	subtitleFile: string;
+};
+
+type FileInfo = Stats & {
+	name: string;
+	extension: string;
+	audioTracks?: Track[];
+	subtitleTracks?: Track[];
+};
 
 export const load: PageServerLoad = async (event) => {
 	const validatedSetup = await validateSetup();
@@ -46,12 +62,33 @@ export const load: PageServerLoad = async (event) => {
 
 	let sourceInfo: SourceInfo;
 
+	// Extract track parameters from URLParams
+	let videoStreamIndex: null | number = null;
+	let audioStreamIndex: null | number = null;
+	let subtitleStreamIndex: null | number = null;
+
 	if (decodedSource.includes('/')) {
 		const url = new URL(decodedSource);
 		const pathname = url.pathname;
 		const params = url.searchParams;
 		const sourceId = pathname.split('Items/')[1].split('/')[0];
 		const apiKey = params.get('api_key');
+
+		const videoStreamIndexParam = params.get('videoStreamIndex');
+		const audioStreamIndexParam = params.get('audioStreamIndex');
+		const subtitleStreamIndexParam = params.get('subtitleStreamIndex');
+
+		if (videoStreamIndexParam) {
+			videoStreamIndex = Number(videoStreamIndexParam);
+		}
+
+		if (audioStreamIndexParam) {
+			audioStreamIndex = Number(audioStreamIndexParam);
+		}
+		if (subtitleStreamIndexParam && subtitleStreamIndexParam !== 'none') {
+			subtitleStreamIndex = Number(subtitleStreamIndexParam);
+		}
+
 		if (!apiKey) {
 			return error(400, 'Source is not a URL');
 		}
@@ -65,7 +102,11 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	const filePath = path.join(ASSETS_ORIGINALS_DIR, `${sourceInfo.sourceId}.mp4`);
-	let mediaItemInfo;
+	// const transcodedFilePath = path.join(
+	// 	ASSETS_ORIGINALS_DIR,
+	// 	`transcoded-${sourceInfo.sourceId}.mp4`
+	// );
+	let mediaItemInfo: BaseItemDto | null = null;
 
 	try {
 		mediaItemInfo = await getItemInfo(
@@ -82,15 +123,24 @@ export const load: PageServerLoad = async (event) => {
 		);
 	}
 
+	const subtitleTracksPromise = getSubtitleTracks({
+		serverAddress: jellyfinAddress,
+		accessToken: user.jellyfinAccessToken,
+		itemId: sourceInfo.sourceId,
+		mediaSource: mediaItemInfo.MediaSources![0]!
+	});
+
 	try {
 		const existingFileStats = statSync(filePath);
 
 		// Check if file size matches the expected size
 		if (existingFileStats.size === mediaItemInfo.MediaSources?.[0].Size) {
+			// Get track info
 			return {
 				user,
 				serverAddress: jellyfinAddress,
 				sourceInfo: mediaItemInfo, // Return the fetched info
+				subtitleTracks: subtitleTracksPromise,
 				fileInfo: {
 					name: sourceInfo.sourceId,
 					extension: 'mp4',
@@ -115,18 +165,20 @@ export const load: PageServerLoad = async (event) => {
 		downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.START, {
 			totalSizeBytes: totalSize
 		} satisfies DownloadProgressTypes['START']);
-		console.log(
-			`Starting download for ${sourceInfo.sourceId}. Total file size: ${(totalSize / 1000000).toFixed(2)} MB`
-		);
+		const { url } = await getDownloadStreamUrl({
+			userId: user.jellyfinUserId,
+			serverAddress: jellyfinAddress,
+			accessToken: user.jellyfinAccessToken,
+			itemId: sourceInfo.sourceId,
+			mediaSourceId: mediaItemInfo.MediaSources?.[0].Id ?? undefined,
+			audioStreamIndex,
+			subtitleStreamIndex
+		});
 
-		const response = await getVideoStream(
-			jellyfinAddress,
-			user.jellyfinAccessToken,
-			sourceInfo.sourceId
-		);
+		// Download the url as a stream
+		const response = await fetch(url);
 
-		// Assuming getVideoStream throws on HTTP errors or response.data is correctly a stream
-		const responseStream = response.data as unknown as NodeJS.ReadableStream;
+		const responseStream = Readable.fromWeb(response.body as ReadableStream);
 		const fileStream = createWriteStream(filePath);
 		let downloadedSize = 0;
 		const progressEmitter = emitThrottledProgressEvents(1000); // Emit progress more frequently if desired
@@ -145,12 +197,17 @@ export const load: PageServerLoad = async (event) => {
 
 			responseStream.pipe(fileStream);
 
-			fileStream.on('finish', () => {
+			fileStream.on('finish', async () => {
 				try {
 					const finalFileStats = statSync(filePath);
 					console.log(`Download completed successfully for ${sourceInfo.sourceId}.`);
-					downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.END);
-					resolve({ name: sourceInfo.sourceId, extension: 'mp4', ...finalFileStats });
+
+					resolve({
+						name: sourceInfo.sourceId,
+						extension: 'mp4',
+						...finalFileStats
+					});
+					// });
 				} catch (statErr) {
 					console.error(`Error stating file ${filePath} after download:`, statErr);
 					downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.ERROR, {
@@ -181,6 +238,7 @@ export const load: PageServerLoad = async (event) => {
 			user,
 			serverAddress: jellyfinAddress,
 			sourceInfo: mediaItemInfo,
+			subtitleTracks: subtitleTracksPromise,
 			fileInfo: downloadPromise // SvelteKit will await this promise
 		};
 	} catch (downloadErr) {

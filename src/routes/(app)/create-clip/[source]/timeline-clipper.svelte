@@ -110,8 +110,6 @@
 		const newTimePrecise = percentage * (timelineEnd - timelineStart) + timelineStart;
 		const newTime = Math.round(newTimePrecise * 100) / 100;
 
-		console.log('newTime', newTime);
-
 		if (draggingHandle === 'start') {
 			startTime = Math.min(newTime, endTime - 0.1);
 			clipStartSecs = startTime;
