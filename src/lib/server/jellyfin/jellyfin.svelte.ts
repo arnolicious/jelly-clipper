@@ -101,8 +101,6 @@ export async function getVideoStream(params: GetVideoStreamParams) {
 	} = params;
 	const api = await getJellyfinApi(serverAddress, accessToken);
 
-	console.log('Getting video stream:', params);
-
 	return getVideosApi(api).getVideoStream(
 		{
 			itemId,

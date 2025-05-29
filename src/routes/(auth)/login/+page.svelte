@@ -34,7 +34,6 @@
 					description: 'Successfully logged in.'
 				});
 				goto('/');
-				console.log('goto /');
 				return;
 			}
 		},

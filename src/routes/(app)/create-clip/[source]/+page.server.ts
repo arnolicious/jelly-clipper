@@ -28,7 +28,6 @@ function emitThrottledProgressEvents(intervalMs = 500) {
 	return (data: DownloadProgressTypes['PROGRESS_UPDATE']) => {
 		const now = Date.now();
 		if (now - lastLogTime >= intervalMs) {
-			// console.log(data); // Logging progress data can be verbose
 			// Emit event to trigger SSE update in /api/download-progress
 			downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.PROGRESS_UPDATE, data);
 
@@ -166,12 +165,6 @@ export const load: PageServerLoad = async (event) => {
 		downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.START, {
 			totalSizeBytes: totalSize
 		} satisfies DownloadProgressTypes['START']);
-		console.log(
-			`Starting download for ${sourceInfo.sourceId}. Total file size: ${(totalSize / 1000000).toFixed(2)} MB
-			Video Stream Index: ${videoStreamIndex}
-			Audio Stream Index: ${audioStreamIndex}
-			Subtitle Stream Index: ${subtitleStreamIndex}`
-		);
 		const { url } = await getDownloadStreamUrl({
 			userId: user.jellyfinUserId,
 			serverAddress: jellyfinAddress,
@@ -181,8 +174,6 @@ export const load: PageServerLoad = async (event) => {
 			audioStreamIndex,
 			subtitleStreamIndex
 		});
-
-		console.log(`Download URL: ${url}`);
 
 		// Download the url as a stream
 		const response = await fetch(url);

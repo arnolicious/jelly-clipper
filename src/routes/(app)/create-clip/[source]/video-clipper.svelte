@@ -109,7 +109,6 @@
 		})
 			.then((res) =>
 				res.json().then(async (data) => {
-					console.log('Frontend: Clip created', data);
 					await sleep(200);
 					goto(`/clip/${data.clipId}`);
 				})
@@ -161,7 +160,6 @@
 
 		if (!selectedSubtitleTrack || selectedSubtitleTrackItem?.value === 'none') {
 			player.textTracks.toArray().forEach((track) => {
-				console.log('Removing subtitle track', track);
 				player?.textTracks.remove(track);
 			});
 		} else {
