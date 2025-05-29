@@ -1,9 +1,12 @@
 import { type JellyfinParameters, Jellyfin } from '@jellyfin/sdk';
 import { getLibraryApi } from '@jellyfin/sdk/lib/utils/api/library-api';
 import { getVideosApi } from '@jellyfin/sdk/lib/utils/api/videos-api';
+import { getSubtitleApi } from '@jellyfin/sdk/lib/utils/api/subtitle-api';
 import { getItemsApi, getMediaInfoApi } from '@jellyfin/sdk/lib/utils/api';
 import { getImageApi } from '@jellyfin/sdk/lib/utils/api/image-api';
 import { getUserLibraryApi } from '@jellyfin/sdk/lib/utils/api/user-library-api';
+import type { MediaSourceInfo } from '@jellyfin/sdk/lib/generated-client/models';
+import type { Track } from '../../../routes/(app)/create-clip/[source]/+page.server';
 
 const JELLYFIN_SERVER_INFO: JellyfinParameters = {
 	clientInfo: {
@@ -220,4 +223,46 @@ export async function getDownloadStreamUrl({
 		sessionId,
 		mediaSource
 	};
+}
+
+type GetSubtitleTracksParams = {
+	serverAddress: string;
+	accessToken: string;
+	itemId: string;
+	mediaSource: MediaSourceInfo;
+};
+
+export async function getSubtitleTracks({
+	accessToken,
+	itemId,
+	serverAddress,
+	mediaSource
+}: GetSubtitleTracksParams): Promise<Track[]> {
+	const api = await getJellyfinApi(serverAddress, accessToken);
+	const mediaSourceSubtitles =
+		mediaSource.MediaStreams?.filter((stream) => stream.Type === 'Subtitle') || [];
+
+	const subtitleApi = getSubtitleApi(api);
+	return Promise.all(
+		mediaSourceSubtitles.map(async (subtitleStream): Promise<Track> => {
+			const subtitle = await subtitleApi.getSubtitle({
+				itemId,
+				mediaSourceId: mediaSource.Id ?? undefined,
+				routeFormat: 'srt',
+				routeItemId: itemId,
+				routeMediaSourceId: mediaSource.Id!,
+				routeIndex: subtitleStream.Index!,
+				startPositionTicks: 0,
+				format: 'srt',
+				index: subtitleStream.Index!
+			});
+
+			return {
+				index: subtitleStream.Index!,
+				language: subtitleStream.Language!,
+				title: subtitleStream.Title || 'Unknown Subtitle',
+				subtitleFile: subtitle.data as unknown as string
+			};
+		})
+	);
 }

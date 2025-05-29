@@ -46,7 +46,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	return {
 		info: mediaItemInfo,
-		audioStreams: mediaSource.MediaStreams?.filter((stream) => stream.Type === 'Audio'),
-		subTitleStreams: mediaSource.MediaStreams?.filter((stream) => stream.Type === 'Subtitle')
+		audioStreams: mediaSource.MediaStreams?.filter((stream) => stream.Type === 'Audio')
+		// subTitleStreams: mediaSource.MediaStreams?.filter((stream) => stream.Type === 'Subtitle')
 	};
 };

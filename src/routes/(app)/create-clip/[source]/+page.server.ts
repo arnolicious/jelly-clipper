@@ -1,7 +1,11 @@
 import { validateSetup } from '$lib/server/db/setup';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getDownloadStreamUrl, getItemInfo } from '$lib/server/jellyfin/jellyfin.svelte';
+import {
+	getDownloadStreamUrl,
+	getItemInfo,
+	getSubtitleTracks
+} from '$lib/server/jellyfin/jellyfin.svelte';
 import type { SourceInfo } from './types'; // Assuming FileInfo is defined in types.ts or here
 import { createWriteStream, Stats, statSync } from 'node:fs';
 import { unlink } from 'node:fs/promises';
@@ -35,8 +39,9 @@ function emitThrottledProgressEvents(intervalMs = 500) {
 
 export type Track = {
 	index: number;
-	language?: string;
-	title?: string;
+	language: string;
+	title: string;
+	subtitleFile: string;
 };
 
 type FileInfo = Stats & {
@@ -119,6 +124,13 @@ export const load: PageServerLoad = async (event) => {
 		);
 	}
 
+	const subtitleTracksPromise = getSubtitleTracks({
+		serverAddress: jellyfinAddress,
+		accessToken: user.jellyfinAccessToken,
+		itemId: sourceInfo.sourceId,
+		mediaSource: mediaItemInfo.MediaSources![0]!
+	});
+
 	try {
 		const existingFileStats = statSync(filePath);
 
@@ -129,6 +141,7 @@ export const load: PageServerLoad = async (event) => {
 				user,
 				serverAddress: jellyfinAddress,
 				sourceInfo: mediaItemInfo, // Return the fetched info
+				subtitleTracks: subtitleTracksPromise,
 				fileInfo: {
 					name: sourceInfo.sourceId,
 					extension: 'mp4',
@@ -159,7 +172,7 @@ export const load: PageServerLoad = async (event) => {
 			Audio Stream Index: ${audioStreamIndex}
 			Subtitle Stream Index: ${subtitleStreamIndex}`
 		);
-		const { mediaSource, sessionId, url } = await getDownloadStreamUrl({
+		const { url } = await getDownloadStreamUrl({
 			userId: user.jellyfinUserId,
 			serverAddress: jellyfinAddress,
 			accessToken: user.jellyfinAccessToken,
@@ -198,50 +211,6 @@ export const load: PageServerLoad = async (event) => {
 					const finalFileStats = statSync(filePath);
 					console.log(`Download completed successfully for ${sourceInfo.sourceId}.`);
 
-					// // Get Audio track and Subtitle track info from file with ffmpeg
-					// const data = await ffprobe(filePath);
-					// const audioTracks = data.streams
-					// 	.filter((stream) => stream.codec_type === 'audio')
-					// 	.map((stream) => ({
-					// 		index: stream.index,
-					// 		language: stream.tags?.language,
-					// 		title: stream.tags?.title
-					// 	}));
-					// const subtitleTracks = data.streams
-					// 	.filter((stream) => stream.codec_type === 'subtitle')
-					// 	.map((stream) => ({
-					// 		index: stream.index,
-					// 		language: stream.tags?.language,
-					// 		title: stream.tags?.title
-					// 	}));
-
-					// console.log('Audio tracks:', audioTracks);
-					// console.log('Subtitle tracks:', subtitleTracks);
-
-					// // Use ffmpeg to transcode the video to a widely compatible format
-					// ffmpeg(filePath)
-					// 	.outputOptions('-c:v', 'libx264') // Use H.264 codec for video
-					// 	.outputOptions('-c:a', 'aac') // Use AAC codec for audio
-					// 	.outputOptions('-movflags', 'faststart') // Optimize for web streaming
-					// 	.save(transcodedFilePath)
-					// 	.on('start', (commandLine) => {
-					// 		console.log('[Transcode] Ffmpeg command: ' + commandLine);
-					// 	})
-					// 	.on('error', (err) => {
-					// 		console.error('An error occurred during transcoding:', err.message);
-					// 		downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.ERROR, {
-					// 			message: err.message || 'Transcoding error'
-					// 		});
-					// 		reject(err);
-					// 	})
-					// 	.on('end', () => {
-					// 		console.log('Transcoding finished successfully.');
-					// 		// Delete the original file after transcoding
-					// 		unlinkSync(filePath);
-					// 		// Rename the transcoded file to the original file name
-					// 		renameSync(transcodedFilePath, filePath);
-
-					// 		downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.END);
 					resolve({
 						name: sourceInfo.sourceId,
 						extension: 'mp4',
@@ -278,6 +247,7 @@ export const load: PageServerLoad = async (event) => {
 			user,
 			serverAddress: jellyfinAddress,
 			sourceInfo: mediaItemInfo,
+			subtitleTracks: subtitleTracksPromise,
 			fileInfo: downloadPromise // SvelteKit will await this promise
 		};
 	} catch (downloadErr) {

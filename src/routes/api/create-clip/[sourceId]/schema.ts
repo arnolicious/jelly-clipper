@@ -7,5 +7,12 @@ export const createClipBodySchema = z.object({
 	sourceInfo: z.object({
 		sourceTitle: z.string(),
 		sourceType: z.enum(['movie', 'show'])
-	})
+	}),
+	subtitleTrack: z
+		.object({
+			fileContent: z.string(),
+			language: z.string(),
+			title: z.string()
+		})
+		.optional()
 });
