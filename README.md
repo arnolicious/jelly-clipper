@@ -117,6 +117,15 @@ Contributions are welcome! Please check out our [Contribution Guidelines](CONTRI
 - [ ] Create browser extension
 - [ ] Improve mobile responsiveness
 
+## ⭐ Star History
+<a href="https://www.star-history.com/#arnolicious/jelly-clipper&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=arnolicious/jelly-clipper&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=arnolicious/jelly-clipper&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=arnolicious/jelly-clipper&type=Date" />
+ </picture>
+</a>
+
 ## 📄 License
 
 Distributed under the MIT License. See `LICENSE` for more information.
