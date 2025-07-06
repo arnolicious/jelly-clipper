@@ -22,7 +22,7 @@
 		"autoprefixer": "^10.4.21",
 		"bits-ui": "^1.4.8",
 		"clsx": "^2.1.1",
-		"drizzle-kit": "^0.31.1",
+		"drizzle-kit": "^0.31.4",
 		"eslint": "^9.26.0",
 		"eslint-config-prettier": "^10.1.5",
 		"eslint-plugin-svelte": "^3.6.0",
