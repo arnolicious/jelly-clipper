@@ -20,7 +20,7 @@
 		"@sveltejs/kit": "^2.22.2",
 		"@sveltejs/vite-plugin-svelte": "^5.1.0",
 		"autoprefixer": "^10.4.21",
-		"bits-ui": "^1.4.8",
+		"bits-ui": "^1.8.0",
 		"clsx": "^2.1.1",
 		"drizzle-kit": "^0.31.4",
 		"eslint": "^9.26.0",
