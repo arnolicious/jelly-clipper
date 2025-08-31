@@ -23,7 +23,7 @@
 		"bits-ui": "^1.8.0",
 		"clsx": "^2.1.1",
 		"drizzle-kit": "^0.31.4",
-		"eslint": "^9.32.0",
+		"eslint": "^9.34.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.11.0",
 		"formsnap": "^2.0.1",
