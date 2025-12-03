@@ -29,7 +29,7 @@
 		"formsnap": "^2.0.1",
 		"globals": "^16.4.0",
 		"lucide-svelte": "^0.555.0",
-		"mode-watcher": "^1.0.8",
+		"mode-watcher": "^1.1.0",
 		"prettier": "^3.7.3",
 		"prettier-plugin-svelte": "^3.4.0",
 		"svelte": "^5.45.2",
