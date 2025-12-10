@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 export const loginFormSchema = z.object({
 	username: z.string().min(1, 'Username cannot be empty'),
