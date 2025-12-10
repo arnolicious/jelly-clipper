@@ -1,12 +1,9 @@
 import { validateSetup } from '$lib/server/db/setup';
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
-import maxListenersExceededWarning from 'max-listeners-exceeded-warning';
 
 export const load: LayoutServerLoad = async (event) => {
 	const validatedSetup = await validateSetup();
-
-	maxListenersExceededWarning();
 
 	if (!validatedSetup.setupIsFinished) {
 		redirect(302, '/setup');
