@@ -1,7 +1,7 @@
 import type { Actions, PageServerLoad } from './$types.js';
 import { message, superValidate } from 'sveltekit-superforms';
 import { setupFormSchema } from './schema';
-import { zod } from 'sveltekit-superforms/adapters';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db/index.js';
 import { SETTING_KEYS, settings, users } from '$lib/server/db/schema.js';
@@ -18,14 +18,14 @@ export const load: PageServerLoad = async () => {
 	}
 
 	return {
-		setupForm: await superValidate(zod(setupFormSchema)),
-		setupLoginForm: await superValidate(zod(loginFormSchema))
+		setupForm: await superValidate(zod4(setupFormSchema)),
+		setupLoginForm: await superValidate(zod4(loginFormSchema))
 	};
 };
 
 export const actions: Actions = {
 	setup: async (event) => {
-		const form = await superValidate(event, zod(setupFormSchema));
+		const form = await superValidate(event, zod4(setupFormSchema));
 		if (!form.valid) {
 			return fail(400, {
 				form
@@ -64,7 +64,7 @@ export const actions: Actions = {
 	},
 	login: async ({ request, cookies }) => {
 		const formData = await request.formData();
-		const form = await superValidate(formData, zod(loginFormSchema));
+		const form = await superValidate(formData, zod4(loginFormSchema));
 		const serverUrl = formData.get('serverUrl')?.toString();
 
 		console.log('Logging in to Jellyfin server at', serverUrl);

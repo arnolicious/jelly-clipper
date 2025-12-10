@@ -4,7 +4,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { toast } from 'svelte-sonner';
 	import { superForm, type FormResult } from 'sveltekit-superforms';
-	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { goto } from '$app/navigation';
 	import { fade } from 'svelte/transition';
 	import type { ActionData, PageData } from './$types';
@@ -17,7 +17,7 @@
 	let { data }: Props = $props();
 
 	const loginForm = superForm(data.loginForm, {
-		validators: zodClient(loginFormSchema),
+		validators: zod4Client(loginFormSchema),
 		onSubmit: () => {
 			toast.loading('Logging in...', { id: 'login-check' });
 		},

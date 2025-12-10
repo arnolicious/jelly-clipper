@@ -10,7 +10,7 @@
 		superForm,
 		type FormResult
 	} from 'sveltekit-superforms';
-	import { zodClient } from 'sveltekit-superforms/adapters';
+	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { goto } from '$app/navigation';
 	import { fade } from 'svelte/transition';
 	import type { ActionData } from './$types';
@@ -24,7 +24,7 @@
 	let { setupForm, loginForm: setupLoginForm }: Props = $props();
 
 	const jellyfinServerForm = superForm(setupForm, {
-		validators: zodClient(setupFormSchema),
+		validators: zod4Client(setupFormSchema),
 		resetForm: false,
 		onSubmit: () => toast.loading('Checking Jellyfin server...', { id: 'server-check' }),
 		onResult: ({ result }) => {
@@ -42,7 +42,7 @@
 	});
 
 	const loginForm = superForm(setupLoginForm, {
-		validators: zodClient(loginFormSchema),
+		validators: zod4Client(loginFormSchema),
 		onSubmit: ({ formData, validators }) => {
 			if ($setupMessage?.status !== 'success' || !$setupMessage.data) {
 				validators(false);
