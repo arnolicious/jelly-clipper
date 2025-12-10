@@ -22,7 +22,7 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 
 	const parsedBody = createClipBodySchema.safeParse(body);
 	if (parsedBody.success === false) {
-		return json({ error: `Invalid request body: ${parsedBody.error.errors}` }, { status: 400 });
+		return json({ error: `Invalid request body: ${parsedBody.error.issues}` }, { status: 400 });
 	}
 
 	// Create clip in db

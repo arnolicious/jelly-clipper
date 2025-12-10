@@ -5,7 +5,7 @@
 	import type { LayoutData } from './$types';
 	import Separator from '$lib/components/ui/separator/separator.svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
 	type Props = {
 		children: Snippet;
@@ -37,7 +37,7 @@
 			</div>
 		</Button>
 		<span></span>
-		{#if !$page.url.pathname.endsWith('create-clip')}
+		{#if !page.url.pathname.endsWith('create-clip')}
 			<Button variant="secondary" href="/" class="text-xl">
 				<i class="ph-bold ph-plus"></i>
 				Create new clip
