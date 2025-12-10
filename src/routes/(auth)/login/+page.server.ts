@@ -1,7 +1,7 @@
 import { fail, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { superValidate } from 'sveltekit-superforms';
-import { zod } from 'sveltekit-superforms/adapters';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import { loginFormSchema } from './schema';
 import { db } from '$lib/server/db';
 import { eq } from 'drizzle-orm';
@@ -16,14 +16,14 @@ export const load: PageServerLoad = async (event) => {
 	}
 
 	return {
-		loginForm: await superValidate(zod(loginFormSchema))
+		loginForm: await superValidate(zod4(loginFormSchema))
 	};
 };
 
 export const actions: Actions = {
 	login: async ({ request, cookies }) => {
 		const formData = await request.formData();
-		const form = await superValidate(formData, zod(loginFormSchema));
+		const form = await superValidate(formData, zod4(loginFormSchema));
 		const serverUrl = (
 			await db.query.settings
 				.findFirst({

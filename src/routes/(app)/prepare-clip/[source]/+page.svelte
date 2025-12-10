@@ -15,16 +15,17 @@
 
 	let { data }: Props = $props();
 
-	const audioTrackItems =
+	const audioTrackItems = $derived(
 		data.audioStreams?.map((audioTrack) => ({
 			value: audioTrack.Index!.toString(),
 			label: audioTrack.DisplayTitle!
-		})) ?? [];
+		})) ?? []
+	);
 
-	let selectedAudioTrack = $state<SelectItem | null>(audioTrackItems?.[0] ?? null);
+	let selectedAudioTrack = $derived<SelectItem | null>(audioTrackItems?.[0] ?? null);
 
 	let createClipUrl = $derived.by(() => {
-		let url = `/create-clip/${encodeURIComponent(page.params.source)}`;
+		let url = `/create-clip/${encodeURIComponent(page.params.source!)}`;
 
 		// No need to use the `?` operator here, as we will always have the `apiKey` param from the jellyfin url
 		if (selectedAudioTrack) {

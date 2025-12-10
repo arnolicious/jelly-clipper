@@ -7,13 +7,15 @@
 		"build": "vite build",
 		"build:docker": "docker build -t arnolicious/jelly-clipper:latest .",
 		"preview": "vite preview",
+		"lint:check": "eslint . --max-warnings=0",
+		"lint:fix": "eslint . --fix",
+		"format:check": "prettier --check .",
+		"format:fix": "prettier --write .",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"db:push": "drizzle-kit push",
 		"db:migrate": "drizzle-kit migrate",
-		"db:studio": "drizzle-kit studio",
-		"lint": "eslint . && prettier --check .",
-		"format": "prettier --write ."
+		"db:studio": "drizzle-kit studio"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "^5.4.0",
