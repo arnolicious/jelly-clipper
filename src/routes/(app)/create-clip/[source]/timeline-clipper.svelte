@@ -20,7 +20,7 @@
 	}: Props = $props();
 
 	let timelineStart = $state(0);
-	let timelineEnd = $state(fullDurationSecs);
+	let timelineEnd = $derived(fullDurationSecs);
 
 	// Zoom level of the timeline
 	// 100 = 100% of the video is visible
@@ -90,7 +90,7 @@
 	});
 
 	let startTime = $state(0);
-	let endTime = $state(Math.min(fullDurationSecs, 30)); // Default range of 30 seconds
+	let endTime = $derived(Math.min(fullDurationSecs, 30)); // Default range of 30 seconds
 	let draggingHandle: 'start' | 'end' | 'full' | null = $state(null);
 
 	let timelineEl = $state<HTMLDivElement | null>(null);

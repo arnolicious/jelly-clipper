@@ -1,6 +1,5 @@
 import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 import { type ClassValue, clsx } from 'clsx';
-import { formatDuration, intervalToDuration, type Locale } from 'date-fns';
 import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
