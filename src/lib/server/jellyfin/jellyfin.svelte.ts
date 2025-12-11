@@ -1,8 +1,8 @@
-import { type JellyfinParameters, Jellyfin } from '@jellyfin/sdk';
+import { Jellyfin, type JellyfinParameters } from '@jellyfin/sdk';
 import { getLibraryApi } from '@jellyfin/sdk/lib/utils/api/library-api';
 import { getVideosApi } from '@jellyfin/sdk/lib/utils/api/videos-api';
 import { getSubtitleApi } from '@jellyfin/sdk/lib/utils/api/subtitle-api';
-import { getItemsApi, getMediaInfoApi } from '@jellyfin/sdk/lib/utils/api';
+import { getMediaInfoApi } from '@jellyfin/sdk/lib/utils/api';
 import { getImageApi } from '@jellyfin/sdk/lib/utils/api/image-api';
 import { getUserLibraryApi } from '@jellyfin/sdk/lib/utils/api/user-library-api';
 import type { MediaSourceInfo } from '@jellyfin/sdk/lib/generated-client/models';
@@ -113,9 +113,7 @@ export async function getVideoStream(params: GetVideoStreamParams) {
 			playSessionId,
 			audioCodec: 'aac',
 			audioStreamIndex: audioStreamIndex ?? 0,
-			...(subtitleStreamIndex !== undefined && subtitleStreamIndex !== null
-				? { subtitleStreamIndex }
-				: {})
+			...(subtitleStreamIndex !== undefined && subtitleStreamIndex !== null ? { subtitleStreamIndex } : {})
 		},
 		{ responseType: 'stream' }
 	);
@@ -237,8 +235,7 @@ export async function getSubtitleTracks({
 	mediaSource
 }: GetSubtitleTracksParams): Promise<Track[]> {
 	const api = await getJellyfinApi(serverAddress, accessToken);
-	const mediaSourceSubtitles =
-		mediaSource.MediaStreams?.filter((stream) => stream.Type === 'Subtitle') || [];
+	const mediaSourceSubtitles = mediaSource.MediaStreams?.filter((stream) => stream.Type === 'Subtitle') || [];
 
 	const subtitleApi = getSubtitleApi(api);
 	return Promise.all(

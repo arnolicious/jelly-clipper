@@ -4,12 +4,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { toast } from 'svelte-sonner';
 	import { setupFormSchema, type SetupFormSchema } from './schema';
-	import {
-		type SuperValidated,
-		type Infer,
-		superForm,
-		type FormResult
-	} from 'sveltekit-superforms';
+	import { type SuperValidated, type Infer, superForm, type FormResult } from 'sveltekit-superforms';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { goto } from '$app/navigation';
 	import { fade } from 'svelte/transition';
@@ -77,11 +72,7 @@
 		message: setupMessage
 	} = jellyfinServerForm;
 
-	const {
-		form: setupLoginFormData,
-		enhance: setupLoginEnhance,
-		submitting: setupLoginSubmitting
-	} = loginForm;
+	const { form: setupLoginFormData, enhance: setupLoginEnhance, submitting: setupLoginSubmitting } = loginForm;
 
 	let isInLoginStep = $derived($setupMessage?.status === 'success' && !!$setupMessage.data);
 </script>
@@ -99,11 +90,7 @@
 				<Form.Control>
 					{#snippet children({ props })}
 						<Form.Label>Jellyfin server address</Form.Label>
-						<Input
-							{...props}
-							bind:value={$setupFormData.jellyfinServerUrl}
-							disabled={isInLoginStep}
-						/>
+						<Input {...props} bind:value={$setupFormData.jellyfinServerUrl} disabled={isInLoginStep} />
 					{/snippet}
 				</Form.Control>
 				<Form.FieldErrors />
@@ -120,7 +107,7 @@
 			{/if}
 		</form>
 		{#if isInLoginStep}
-			<form method="POST" action="?/login" use:setupLoginEnhance transition:fade>
+			<form method="POST" action="?/login" use:setupLoginEnhance>
 				<Form.Field form={loginForm} name="username">
 					<Form.Control>
 						{#snippet children({ props })}

@@ -40,11 +40,7 @@
 		onError: ({ result }) => toast.error(result.error.message, { id: 'login-check' })
 	});
 
-	const {
-		form: setupLoginFormData,
-		enhance: setupLoginEnhance,
-		submitting: setupLoginSubmitting
-	} = loginForm;
+	const { form: setupLoginFormData, enhance: setupLoginEnhance, submitting: setupLoginSubmitting } = loginForm;
 </script>
 
 <Card.Root>
@@ -53,7 +49,7 @@
 		<Card.Description>Please enter your Jellyfin credentials to log in.</Card.Description>
 	</Card.Header>
 	<Card.Content>
-		<form method="POST" action="?/login" use:setupLoginEnhance transition:fade>
+		<form method="POST" action="?/login" use:setupLoginEnhance>
 			<Form.Field form={loginForm} name="username">
 				<Form.Control>
 					{#snippet children({ props })}
