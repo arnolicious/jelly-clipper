@@ -1,52 +1,47 @@
-import { validateSetup } from '$lib/server/db/setup';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import type { SourceInfo } from '../../create-clip/[source]/types';
-import { getItemInfo } from '$lib/server/jellyfin/jellyfin.svelte';
+import { Effect, Exit, Layer, Schema } from 'effect';
+import { PrepareClipService } from '$lib/server/services/PrepareClipService';
+import { AuthenticatedUserLayer, serverRuntime } from '$lib/server/services/RuntimeLayers';
+import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/CurrentUser';
+
+const getClipInfo = Effect.fn(function* (source: string) {
+	const prepareClip = yield* PrepareClipService;
+
+	const decodedSource = decodeURIComponent(source);
+
+	if (!decodedSource.includes('/')) {
+		return yield* InvalidSourceFormatError.make({ source: decodedSource });
+	}
+	const url = new URL(decodedSource);
+	const pathname = url.pathname;
+	const sourceId = pathname.split('Items/')[1].split('/')[0];
+
+	const clipInfo = yield* prepareClip.getClipInfo(sourceId);
+	return clipInfo;
+});
+
+class InvalidSourceFormatError extends Schema.TaggedError<InvalidSourceFormatError>()('InvalidSourceFormatError', {
+	source: Schema.String
+}) {}
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-	const validatedSetup = await validateSetup();
-	const user = locals.user;
-	if (!validatedSetup.setupIsFinished || !user) {
-		return error(400, 'Jelly-Clipper is not setup yet');
-	}
-	const jellyfinAddress = validatedSetup.serverAddress;
-	const decodedSource = decodeURIComponent(params.source);
+	const authedLayer = Layer.provideMerge(AuthenticatedUserLayer, makeAuthenticatedRuntimeLayer(locals));
+	const authedRunnable = Effect.provide(getClipInfo(params.source), authedLayer);
+	const result = await serverRuntime.runPromiseExit(authedRunnable);
 
-	let sourceInfo: SourceInfo;
-
-	if (decodedSource.includes('/')) {
-		const url = new URL(decodedSource);
-		const pathname = url.pathname;
-		const params = url.searchParams;
-		const sourceId = pathname.split('Items/')[1].split('/')[0];
-		const apiKey = params.get('api_key');
-		if (!apiKey) {
-			return error(400, 'Source is not a URL');
+	const loadResult = Exit.match(result, {
+		onSuccess: (clipInfo) => clipInfo,
+		onFailure: (cause) => {
+			if (cause._tag === 'Fail') {
+				if (cause.error._tag === 'InvalidSourceFormatError') {
+					return error(400, `Invalid source format: ${cause.error.source}`);
+				}
+				return error(500, cause.error.message);
+			}
+			return error(500, 'An unexpected error occurred: ' + cause.toString());
 		}
-		sourceInfo = {
-			sourceId,
-			apiKey
-		};
-	} else {
-		// Consider if this case should throw an error earlier or be handled differently
-		return error(400, 'Invalid source format: Expected a URL path.');
-	}
-
-	// Fetch information about what audio and subtitle streams are available
-	const mediaItemInfo = await getItemInfo(
-		jellyfinAddress,
-		user.jellyfinAccessToken,
-		sourceInfo.sourceId
-	);
-	const mediaSource = mediaItemInfo?.MediaSources?.[0];
-	if (!mediaItemInfo || !mediaSource) {
-		return error(500, 'Failed to retrieve media information from Jellyfin');
-	}
-
-	return {
-		info: mediaItemInfo,
-		audioStreams: mediaSource.MediaStreams?.filter((stream) => stream.Type === 'Audio')
-		// subTitleStreams: mediaSource.MediaStreams?.filter((stream) => stream.Type === 'Subtitle')
-	};
+	});
+	console.log('Load result:', loadResult);
+	return loadResult;
 };

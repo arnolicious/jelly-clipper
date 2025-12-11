@@ -1,6 +1,5 @@
 import { drizzle } from 'drizzle-orm/libsql';
 import { createClient } from '@libsql/client';
-
 import { env } from '$env/dynamic/private';
 import * as schema from './schema';
 import { migrate } from 'drizzle-orm/libsql/migrator';
