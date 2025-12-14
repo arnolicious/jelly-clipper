@@ -6,12 +6,15 @@ import { ClipService } from './ClipService';
 import { AssetNodeLayer } from './AssetService';
 import { DownloadMediaServiceLive } from './DownloadMediaService';
 import type { CurrentUser } from './CurrentUser';
-import { FetchHttpClient } from '@effect/platform';
 import { CreateClipService } from './CreateClipService';
+import { FfmpegLayer } from './AVService';
 
-export const UserAgnosticLayer = JellyClipperConfigWithDbLayer.pipe(Layer.merge(AssetNodeLayer))
-	.pipe(Layer.merge(FetchHttpClient.layer), Layer.merge(AnonymousJellyfinApiLayer))
-	.pipe(Layer.provideMerge(Logger.pretty));
+export const UserAgnosticLayer = Layer.mergeAll(
+	Layer.provideMerge(FfmpegLayer, AssetNodeLayer),
+	JellyClipperConfigWithDbLayer,
+	AnonymousJellyfinApiLayer,
+	Logger.pretty
+);
 
 export const serverRuntime = ManagedRuntime.make(UserAgnosticLayer);
 
@@ -22,7 +25,7 @@ export const AuthenticatedUserLayer = Layer.mergeAll(
 ).pipe(
 	Layer.provideMerge(ItemInfoService.layer),
 	Layer.provideMerge(AuthedJellyfinApiLayer),
-	Layer.provideMerge(AssetNodeLayer)
+	Layer.provideMerge(UserAgnosticLayer)
 );
 
 // Assert that the AuthenticatedUserLayer only requires the CurrentUser Layer

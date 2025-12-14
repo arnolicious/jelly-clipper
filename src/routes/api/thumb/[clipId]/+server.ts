@@ -1,13 +1,18 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { validateSetup } from '$lib/server/db/setup';
-import Ffmpeg from 'fluent-ffmpeg';
-import { ASSETS_CLIPS_DIR } from '$lib/constants';
 import { readFileSync } from 'fs';
+import { Effect, Exit } from 'effect';
+import { AVService } from '$lib/server/services/AVService';
+import { serverRuntime } from '$lib/server/services/RuntimeLayers';
 
-/**
- * Turns out this was not needed, since Jellyfin does not block CORS requests
- */
+const generateThumbnail = Effect.fn('generateThumbnail')(function* (clipId: number) {
+	const av = yield* AVService;
+
+	const thumbnailPath = yield* av.createThumbnailForClip(clipId);
+
+	return thumbnailPath;
+});
 
 export const GET: RequestHandler = async ({ params }) => {
 	const validatedSetup = await validateSetup();
@@ -15,37 +20,22 @@ export const GET: RequestHandler = async ({ params }) => {
 	if (!validatedSetup.setupIsFinished) {
 		return error(400, 'Jelly-Clipper is not setup yet');
 	}
+	const clipId = Number(params.clipId);
 
-	const clipId = params.clipId;
+	const exit = await serverRuntime.runPromiseExit(generateThumbnail(clipId));
 
-	const proc = Ffmpeg({ source: `${ASSETS_CLIPS_DIR}/${clipId}.mp4` });
-
-	// Use ffmpeg to create a thumbnail
-	await new Promise<void>((resolve, reject) => {
-		proc
-			.on('start', (commandLine) => {
-				console.info('Spawned Ffmpeg with command: ' + commandLine);
-			})
-			.on('error', (err) => {
-				console.error('An error occurred: ' + err.message);
-				reject(err);
-			})
-			.on('end', (err) => {
-				if (!err) {
-					console.info('Processing finished !');
-					resolve();
-				}
-				reject(err);
-			})
-			.screenshots({
-				count: 1,
-				filename: `${ASSETS_CLIPS_DIR}/${clipId}.jpg`,
-				timemarks: ['0%']
-			});
-	});
+	if (Exit.isFailure(exit)) {
+		const cause = exit.cause;
+		if (cause._tag === 'Fail') {
+			return error(500, cause.error.message);
+		} else {
+			return error(500, 'An unexpected error occurred: ' + cause.toString());
+		}
+	}
+	const thumbnailPath = exit.value;
 
 	// Load the image from disk and return it
-	const image = readFileSync(`${ASSETS_CLIPS_DIR}/${clipId}.jpg`);
+	const image = readFileSync(thumbnailPath);
 
 	return new Response(image, {
 		headers: {

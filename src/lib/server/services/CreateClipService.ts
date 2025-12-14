@@ -3,15 +3,14 @@ import { DatabaseError, DB } from './DatabaseService';
 import { CurrentUser, NoCurrentUserError } from './CurrentUser';
 import { clips } from '../db/schema';
 import { AssetService } from './AssetService';
-import ffmpeg from 'fluent-ffmpeg';
-import type { PlatformError } from '@effect/platform/Error';
+import { AvError, AVService, SecondsSchema } from './AVService';
 
 export class CreateClipService extends Context.Tag('CreateClipService')<
 	CreateClipService,
 	{
 		createClip: (
 			params: CreateClipBody
-		) => Effect.Effect<number, ClipNotCreated | DatabaseError | FfmpegError | NoCurrentUserError | PlatformError>;
+		) => Effect.Effect<number, ClipNotCreated | DatabaseError | FfmpegError | NoCurrentUserError | AvError>;
 	}
 >() {
 	static layer = Layer.effect(
@@ -20,6 +19,7 @@ export class CreateClipService extends Context.Tag('CreateClipService')<
 			const db = yield* DB;
 			const currentUser = yield* CurrentUser;
 			const assetService = yield* AssetService;
+			const av = yield* AVService;
 
 			return CreateClipService.of({
 				createClip: Effect.fn('CreateClipService.createClip')(function* (params: CreateClipBody) {
@@ -49,58 +49,20 @@ export class CreateClipService extends Context.Tag('CreateClipService')<
 
 					const subtitle = params.subtitleTrack;
 
-					const duration = params.end - params.start;
-
 					// Load media file from ASSETS_ORIGINALS_DIR/:sourceId.mp4
-					const proc = ffmpeg({ source: `${assetService.ORIGINALS_DIR}/${params.sourceInfo.sourceId}.mp4` });
-					proc.setStartTime(params.start).setDuration(duration);
+					const sourceUri = `${assetService.ORIGINALS_DIR}/${params.sourceInfo.sourceId}.mp4`;
 
-					if (subtitle && subtitle.fileContent) {
-						yield* Effect.logDebug(`Adding subtitles to clip ${clipId} in language ${subtitle.language}`);
-						// 1. Adjust subtitle timestamps
-						const adjustedSrtContent = adjustSrtTimestamps(params.subtitleTrack.fileContent, params.start);
-
-						// 2. Save the adjusted subtitle content to a temporary file
-						const tempSrtFilePath = yield* assetService.writeSubtitleForClip(clipId, adjustedSrtContent);
-
-						// 3. Add the subtitles filter to ffmpeg
-						// The `subtitles` filter expects a file path.
-						// Ensure the path is correct and accessible by ffmpeg.
-						proc.videoFilters(`subtitles='${tempSrtFilePath.replace(/\\/g, '\\\\')}'`); // Escape backslashes for ffmpeg path
-					}
-
-					const ffmpegPromise = new Promise<void>((resolve, reject) => {
-						proc
-							.videoCodec('libx264')
-							.outputOptions([
-								'-pix_fmt yuv420p', // Force 8-bit pixel format (yuv420p) for compatibility
-								'-crf 23',
-								'-preset medium'
-							])
-							.audioCodec('aac')
-							.saveToFile(`${assetService.CLIPS_DIR}/${clipId}.mp4`)
-							.on('start', (commandLine) => {
-								console.info('Spawned Ffmpeg with command: ' + commandLine);
-							})
-							.on('error', (err) => {
-								console.error('An error occurred: ' + err.message);
-								reject(err);
-							})
-							.on('end', (err) => {
-								if (!err) {
-									console.info('Processing finished !');
-									resolve();
-								}
-								reject(err);
-							});
+					yield* Effect.logDebug(`Starting AV processing for clip ${clipId}`);
+					yield* av.clipVideo({
+						clipId: clipId,
+						sourceUri: sourceUri,
+						sourceInfo: params.sourceInfo,
+						start: params.start,
+						end: params.end,
+						subtitleTrack: subtitle
 					});
 
-					yield* Effect.logDebug(`Starting ffmpeg processing for clip ${clipId}`);
-					yield* Effect.tryPromise({
-						try: () => ffmpegPromise,
-						catch: (error) => new FfmpegError({ message: String(error) })
-					});
-					yield* Effect.logDebug(`Ffmpeg processing completed for clip ${clipId}`);
+					yield* Effect.logDebug(`AV processing completed for clip ${clipId}`);
 					return clipId;
 				})
 			});
@@ -114,11 +76,17 @@ export class FfmpegError extends Schema.TaggedError<FfmpegError>()('FfmpegError'
 	message: Schema.String
 }) {}
 
-export const SecondsSchema = Schema.Number.pipe(Schema.brand('seconds'));
-
 const SrtStringContentSchema = Schema.String.pipe(Schema.brand('SrtStringContent'));
 
 export type SrtStringContent = typeof SrtStringContentSchema.Type;
+
+export const SubtitleTrackSchema = Schema.Struct({
+	fileContent: SrtStringContentSchema,
+	language: Schema.String,
+	title: Schema.String
+});
+
+export type SubtitleTrack = typeof SubtitleTrackSchema.Type;
 
 export const CreateClipBodySchema = Schema.Struct({
 	start: SecondsSchema,
@@ -129,52 +97,7 @@ export const CreateClipBodySchema = Schema.Struct({
 		sourceTitle: Schema.String,
 		sourceType: Schema.Union(Schema.Literal('movie'), Schema.Literal('show'))
 	}),
-	subtitleTrack: Schema.optional(
-		Schema.Struct({
-			fileContent: SrtStringContentSchema,
-			language: Schema.String,
-			title: Schema.String
-		})
-	)
+	subtitleTrack: Schema.optional(SubtitleTrackSchema)
 }).annotations({ identifier: 'CreateClipBody' });
 
 export type CreateClipBody = typeof CreateClipBodySchema.Type;
-
-// Helper function to adjust SRT timestamps
-function adjustSrtTimestamps(srtContent: SrtStringContent, offsetInSeconds: number): SrtStringContent {
-	const lines = srtContent.split('\n') as SrtStringContent[];
-	const newSrtContent: SrtStringContent[] = [];
-
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
-		// SRT time format: HH:MM:SS,ms --> HH:MM:SS,ms
-		const timecodeRegex = /(\d{2}):(\d{2}):(\d{2}),(\d{3}) --> (\d{2}):(\d{2}):(\d{2}),(\d{3})/;
-
-		if (timecodeRegex.test(line)) {
-			const match = line.match(timecodeRegex);
-			if (match) {
-				const [_, startH, startM, startS, startMs, endH, endM, endS, endMs] = match.map(Number);
-
-				const startTimeInMs = (startH * 3600 + startM * 60 + startS) * 1000 + startMs;
-				const endTimeInMs = (endH * 3600 + endM * 60 + endS) * 1000 + endMs;
-
-				const newStartTimeInMs = Math.max(0, startTimeInMs - offsetInSeconds * 1000);
-				const newEndTimeInMs = Math.max(0, endTimeInMs - offsetInSeconds * 1000);
-
-				const formatTime = (ms: number) => {
-					const totalSeconds = Math.floor(ms / 1000);
-					const hours = Math.floor(totalSeconds / 3600);
-					const minutes = Math.floor((totalSeconds % 3600) / 60);
-					const seconds = totalSeconds % 60;
-					const milliseconds = ms % 1000;
-					return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')},${String(milliseconds).padStart(3, '0')}`;
-				};
-
-				newSrtContent.push(`${formatTime(newStartTimeInMs)} --> ${formatTime(newEndTimeInMs)}` as SrtStringContent);
-			}
-		} else {
-			newSrtContent.push(line);
-		}
-	}
-	return newSrtContent.join('\n') as SrtStringContent;
-}
