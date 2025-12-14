@@ -23,7 +23,10 @@ const prepareClip = Effect.fn('prepareClip')(function* (source: string) {
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const authedLayer = Layer.provideMerge(AuthenticatedUserLayer, makeAuthenticatedRuntimeLayer(locals));
-	const authedRunnable = Effect.provide(prepareClip(params.source), authedLayer);
+	const authedRunnable = Effect.provide(
+		prepareClip(params.source).pipe(Effect.withLogSpan('prepare-clip.prepareClip')),
+		authedLayer
+	);
 	const result = await serverRuntime.runPromiseExit(authedRunnable);
 
 	return Exit.match(result, {

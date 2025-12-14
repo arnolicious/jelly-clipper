@@ -51,6 +51,7 @@ const DefaultAssetService = Layer.effect(
 			if (!clipsDirExists) {
 				yield* fs.makeDirectory(ASSETS_CLIPS_DIR);
 			}
+			yield* Effect.logDebug('Ensured asset directories exist');
 		});
 
 		const getMediaItemPath = (itemId: string) => {
@@ -68,6 +69,7 @@ const DefaultAssetService = Layer.effect(
 			const size = BigIntFileSize.make(stat.size);
 			const pathInfo = path.extname(itemPath);
 			const name = path.basename(itemPath, pathInfo);
+			yield* Effect.logDebug(`Fetched file info for item ${itemId}`);
 			return FileInfoSchema.make({
 				name,
 				extension: pathInfo,
@@ -86,6 +88,7 @@ const DefaultAssetService = Layer.effect(
 				const itemPath = getMediaItemPath(itemId);
 				const fileSink = fs.sink(itemPath);
 				yield* stream.pipe(Stream.run(fileSink));
+				yield* Effect.logDebug(`Wrote file stream for item ${itemId}`);
 				return yield* getFileInfoForItem(itemId).pipe(
 					Effect.catchTag('AssetNotOnDisk', () => Effect.fail(WriteStreamFailed.make()))
 				);

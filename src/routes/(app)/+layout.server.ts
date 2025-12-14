@@ -16,7 +16,11 @@ export const load: LayoutServerLoad = async (event) => {
 		redirect(302, '/login');
 	}
 
-	await serverRuntime.runPromise(Effect.log('Layout load function executed'));
+	await serverRuntime.runPromise(
+		Effect.gen(function* () {
+			yield* Effect.log('Started (app) layout load');
+		})
+	);
 
 	return {
 		user: event.locals.user,

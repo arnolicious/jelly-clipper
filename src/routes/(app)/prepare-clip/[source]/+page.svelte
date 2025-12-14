@@ -49,7 +49,7 @@
 				items={audioTrackItems}
 				type="single"
 			>
-				<Select.Trigger class="w-[400px]">
+				<Select.Trigger class="min-w-[400px] gap-2">
 					{selectedAudioTrack?.label ?? 'Select Audio Track'}
 				</Select.Trigger>
 				<Select.Content>

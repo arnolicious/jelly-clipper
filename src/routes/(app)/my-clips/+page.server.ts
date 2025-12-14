@@ -9,7 +9,7 @@ const getClips = Effect.gen(function* () {
 	const clipService = yield* ClipService;
 
 	return yield* clipService.getAllUserClips();
-});
+}).pipe(Effect.withLogSpan('my-clips.getClips'));
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const authedLayer = Layer.provideMerge(AuthenticatedUserLayer, makeAuthenticatedRuntimeLayer(locals));

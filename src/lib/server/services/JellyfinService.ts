@@ -61,12 +61,12 @@ export class AnonymousJellyfinApi extends Context.Tag('AnonymousJellyfinApi')<
 
 			return AnonymousJellyfinApi.of({
 				findServerByAddress: Effect.fn('JellyfinApi.findServerByAddress')(function* (address: string) {
-					yield* Effect.log(`Finding Jellyfin server at address: ${address}`);
+					yield* Effect.logDebug(`Finding Jellyfin server at address: ${address}`);
 					const servers = yield* Effect.tryPromise({
 						try: () => jellyfinSdk.discovery.getRecommendedServerCandidates(address),
 						catch: (error) => JellyfinApiError.make({ message: (error as Error).message })
 					});
-					yield* Effect.log(`Found ${servers.length} server candidates`);
+					yield* Effect.logDebug(`Found ${servers.length} server candidates`);
 					const bestServer = jellyfinSdk.discovery.findBestServer(servers);
 					if (!bestServer) {
 						yield* Effect.logWarning(`No Jellyfin server found at address: ${address}`);
@@ -217,8 +217,6 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 								},
 								{ signal }
 							);
-
-							console.log('Fetched subtitle', subtitleStream);
 
 							const track = Schema.decodeUnknown(TrackSchema)(
 								{

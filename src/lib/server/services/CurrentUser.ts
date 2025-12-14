@@ -16,6 +16,7 @@ export const makeAuthenticatedRuntimeLayer = (
 			if (!user) {
 				return yield* NoCurrentUserError.make();
 			}
+			yield* Effect.logDebug(`Retrieved current user ${user.jellyfinUserName} (${user.jellyfinUserId})`);
 			return User.make({
 				accessToken: user.jellyfinAccessToken,
 				id: user.jellyfinUserId,

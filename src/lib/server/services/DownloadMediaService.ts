@@ -52,6 +52,7 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 				audioStreamIndex?: number,
 				subtitleStreamIndex?: number
 			) {
+				yield* Effect.logDebug(`Starting download for item ${itemId}`);
 				const existingFile = yield* assetService
 					.getFileInfoForItem(itemId)
 					.pipe(Effect.catchTag('AssetNotOnDisk', () => Effect.succeed(null)));
@@ -61,20 +62,24 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 				const subtitleTracks = yield* jellyfinApi.getSubtitleTracks(itemId, mediaSource);
 
 				if (existingFile) {
+					yield* Effect.logDebug(`Found existing file for item ${itemId}, verifying integrity`);
 					let checksPassed = true;
-					// Sanity checks to ensure the file is correct
-					if (existingFile.size !== BigIntFileSize.make(BigInt(mediaSource.Size))) {
-						Effect.logWarning(
-							`Existing file size for item ${itemId} (${existingFile.size}) does not match expected size (${mediaSource.Size}). Re-downloading.`
+					const sizeDifference = BigInt(mediaSource.Size) - existingFile.size;
+					// Allow the size to differ by up to 100KB
+					if (sizeDifference > 102400n || sizeDifference < -102400n) {
+						yield* Effect.logWarning(
+							`File size mismatch for item ${itemId}: expected ${mediaSource.Size}, got ${existingFile.size}. Size difference: ${sizeDifference}`
 						);
 						checksPassed = false;
 					}
 
 					if (checksPassed) {
+						yield* Effect.logDebug(`Existing file for item ${itemId} passed integrity checks, skipping download`);
 						return { fileInfo: existingFile, subtitleTracks };
 					} // else proceed to re-download
 				}
 
+				yield* Effect.logDebug(`Downloading media for item ${itemId}`);
 				// Download file
 				const downloadUrl = yield* jellyfinApi.getDownloadStreamUrl({
 					itemId,
@@ -87,6 +92,8 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 					totalSizeBytes: mediaSource.Size
 				} satisfies DownloadProgressTypes['START']);
 
+				yield* Effect.logDebug(`Obtained download URL for item ${itemId}`);
+
 				const downloadStream = yield* http
 					.get(downloadUrl)
 					.pipe(Effect.map((res) => res.stream.pipe(Stream.catchAll(() => Stream.fail(new DownloadFailedError())))));
@@ -94,8 +101,8 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 				let downloadedSize = 0;
 
 				const downloadListener = (chunk: Uint8Array) =>
-					Effect.sync(() => {
-						Effect.logDebug(`Downloaded chunk of size ${chunk.byteLength} for item ${itemId}`);
+					Effect.gen(function* () {
+						yield* Effect.logDebug(`Downloaded chunk of size ${chunk.byteLength} for item ${itemId}`);
 						downloadedSize += chunk.byteLength;
 
 						if (
@@ -121,6 +128,7 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 				downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.END, {} satisfies DownloadProgressTypes['END']);
 
 				// Eventually return downloaded file info & subtitles
+				yield* Effect.logDebug(`Completed download for item ${itemId}`);
 				return {
 					fileInfo,
 					subtitleTracks

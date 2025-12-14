@@ -56,7 +56,7 @@ export class ItemInfoService extends Context.Tag('ItemInfoService')<
 					return yield* NoAudioStreamsError.make({ sourceId, mediaInfo: info });
 				}
 				const parsedResult = Schema.decodeUnknownSync(ClipInfoSchema)({ info, audioStreams }, { errors: 'all' });
-
+				yield* Effect.logDebug(`Fetched media info for item ${sourceId}`);
 				return parsedResult;
 			});
 

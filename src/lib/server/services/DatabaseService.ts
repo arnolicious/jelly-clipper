@@ -29,10 +29,10 @@ export class DB extends Context.Tag('DB')<
 	static readonly layer = Layer.effect(
 		DB,
 		Effect.gen(function* () {
-			yield* Effect.log('Connecting to database...');
+			yield* Effect.logDebug('Connecting to database...');
 			const db = yield* getDb;
 
-			yield* Effect.log('Running database migrations...');
+			yield* Effect.logDebug('Running database migrations...');
 			yield* Effect.tryPromise({
 				try: () => migrate(db, { migrationsFolder: 'src/lib/server/db/.drizzle/' }),
 				catch: (cause) => new DatabaseError({ message: 'Failed to run database migrations', cause })

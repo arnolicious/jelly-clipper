@@ -27,7 +27,7 @@ export class ClipService extends Context.Tag('ClipService')<
 						})
 						.execute()
 				);
-
+				yield* Effect.logDebug(`Fetched ${userClips.length} clips for user ${user.id}`);
 				return userClips;
 			});
 

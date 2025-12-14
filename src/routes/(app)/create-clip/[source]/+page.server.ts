@@ -58,7 +58,10 @@ const downloadEffect = Effect.fn('downloadEffect')(function* (
 
 export const load: PageServerLoad = async (event) => {
 	const authedLayer = Layer.provideMerge(AuthenticatedUserLayer, makeAuthenticatedRuntimeLayer(event.locals));
-	const itemInfoRunnable = Effect.provide(itemInfoEffect(event.params.source), authedLayer);
+	const itemInfoRunnable = Effect.provide(
+		itemInfoEffect(event.params.source).pipe(Effect.withLogSpan('create-clip.itemInfoEffect')),
+		authedLayer
+	);
 
 	const itemInfoResult = await Effect.runPromiseExit(itemInfoRunnable);
 
@@ -79,7 +82,7 @@ export const load: PageServerLoad = async (event) => {
 		itemInfo.itemInfo.info.Id,
 		itemInfo.audioStreamIndex,
 		itemInfo.subtitleStreamIndex
-	);
+	).pipe(Effect.withLogSpan('create-clip.downloadEffect'));
 
 	const downloadRunnable = Effect.provide(downloadProgram, authedLayer);
 

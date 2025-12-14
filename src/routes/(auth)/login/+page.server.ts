@@ -63,7 +63,7 @@ export const actions: Actions = {
 				username: form.data.username,
 				password: form.data.password,
 				serverUrl: serverUrl
-			})
+			}).pipe(Effect.withLogSpan('login.authenticateUser'))
 		);
 
 		if (Exit.isFailure(authExit)) {

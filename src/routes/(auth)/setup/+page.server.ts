@@ -56,7 +56,9 @@ export const actions: Actions = {
 			});
 		}
 
-		const bestServerExit = await serverRuntime.runPromiseExit(findJellyfinServer(form.data.jellyfinServerUrl));
+		const bestServerExit = await serverRuntime.runPromiseExit(
+			findJellyfinServer(form.data.jellyfinServerUrl).pipe(Effect.withLogSpan('setup.findJellyfinServer'))
+		);
 
 		if (Exit.isFailure(bestServerExit)) {
 			const cause = bestServerExit.cause;
@@ -108,7 +110,7 @@ export const actions: Actions = {
 				username: form.data.username,
 				password: form.data.password,
 				serverUrl: serverUrl
-			})
+			}).pipe(Effect.withLogSpan('setup.authenticateUser'))
 		);
 
 		if (Exit.isFailure(authExit)) {
