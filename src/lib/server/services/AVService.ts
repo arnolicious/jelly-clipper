@@ -2,6 +2,7 @@ import { Context, Effect, Layer, Schema } from 'effect';
 import ffmpeg from 'fluent-ffmpeg';
 import type { SrtStringContent, SubtitleTrack } from './CreateClipService';
 import { AssetService } from './AssetService';
+import {} from 'node-av/api';
 
 interface ClipVideoParams {
 	clipId: number;
@@ -125,6 +126,23 @@ export const FfmpegLayer = Layer.effect(
 					catch: (error) => new AvError({ cause: error })
 				});
 				yield* Effect.logDebug(`Thumbnail generated at ${targetPath} for clip ${clipId}`);
+				return targetPath;
+			})
+		});
+	})
+);
+
+export const NodeAvLayer = Layer.effect(
+	AVService,
+	Effect.gen(function* () {
+		const assetService = yield* AssetService;
+
+		return AVService.of({
+			clipVideo: Effect.fn('AVService.clipVideo')(function* (params) {}),
+			createThumbnailForClip: Effect.fn('AVService.createThumbnailForClip')(function* (clipId, thumbnailPercent = 10) {
+				const targetPath = `${assetService.CLIPS_DIR}/${clipId}.jpg`;
+
+				yield* Effect.logDebug(`(NodeAvLayer) Generated thumbnail at ${targetPath} for clip ${clipId}`);
 				return targetPath;
 			})
 		});

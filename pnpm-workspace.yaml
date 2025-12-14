@@ -1,3 +1,5 @@
 onlyBuiltDependencies:
   - '@parcel/watcher'
+  - '@seydx/node-av-linux-x64'
   - esbuild
+  - node-av
