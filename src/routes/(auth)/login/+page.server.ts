@@ -105,9 +105,9 @@ export const actions: Actions = {
 				.update(users)
 				.set({
 					jellyfinAccessToken: accessToken,
-					jellyfinUserName: user.Name as string
+					jellyfinUserName: user.Name
 				})
-				.where(eq(users.jellyfinUserId, user.Id as string))
+				.where(eq(users.jellyfinUserId, user.Id))
 				.execute();
 		} else {
 			// Add the user
@@ -116,15 +116,15 @@ export const actions: Actions = {
 				.values({
 					isAdmin: true,
 					jellyfinAccessToken: accessToken,
-					jellyfinUserId: user.Id as string,
+					jellyfinUserId: user.Id,
 					jellyfinAvatarUrl: `/api/avatarproxy/${user.Id}`,
-					jellyfinUserName: user.Name as string
+					jellyfinUserName: user.Name
 				})
 				.execute();
 		}
 
 		// Create a session
-		const sessionId = await createUserSession(user.Id as string, accessToken);
+		const sessionId = await createUserSession(user.Id, accessToken);
 
 		// Set the session cookie
 		cookies.set('sessionid', sessionId, {

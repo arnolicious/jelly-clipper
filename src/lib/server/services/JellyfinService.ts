@@ -1,4 +1,4 @@
-import type { AuthenticationResult, BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
+import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 import { Context, Effect, Layer, Schema } from 'effect';
 import { Jellyfin, type RecommendedServerInfo } from '@jellyfin/sdk';
 import { getMediaInfoApi, getSubtitleApi, getUserApi, getUserLibraryApi } from '@jellyfin/sdk/lib/utils/api';
@@ -11,6 +11,7 @@ import {
 import type { DatabaseError } from './DatabaseService';
 import { CurrentUser, NoCurrentUserError } from './CurrentUser';
 import { MediaSourceSchema, type MediaSource } from '../schemas/MediaSource';
+import { type AuthenticationResult, AuthenticationResultSchema } from '../schemas/AuthenticationResult';
 import type { ParseError } from 'effect/ParseResult';
 
 type JellyfinSdkApi = ReturnType<Jellyfin['createApi']>;
@@ -41,7 +42,7 @@ export class AnonymousJellyfinApi extends Context.Tag('AnonymousJellyfinApi')<
 			username: string;
 			password: string;
 			serverAddress: string;
-		}) => Effect.Effect<AuthenticationResult, JellyfinApiError>;
+		}) => Effect.Effect<AuthenticationResult, JellyfinApiError | ParseError>;
 	}
 >() {
 	static readonly layer = Layer.effect(
@@ -87,7 +88,8 @@ export class AnonymousJellyfinApi extends Context.Tag('AnonymousJellyfinApi')<
 						},
 						catch: (error) => JellyfinApiError.make({ message: (error as Error).message })
 					});
-					return auth.data;
+					const parsed = yield* Schema.decodeUnknown(AuthenticationResultSchema)(auth.data, { errors: 'all' });
+					return parsed;
 				}),
 				jellyfinSdk
 			});
