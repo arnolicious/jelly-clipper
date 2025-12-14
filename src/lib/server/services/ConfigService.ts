@@ -38,13 +38,7 @@ const JellyfinConfigWithDbLayer = Layer.provideMerge(JellyfinConfig.layer, DB.la
 export class JellyfinNotConfiguredError extends Schema.TaggedError<JellyfinNotConfiguredError>()(
 	'JellyfinNotConfiguredError',
 	{}
-) {
-	constructor() {
-		super();
-		this.message =
-			'JellyClipper is not configured to connect to a Jellyfin server. Please set the Jellyfin URL in the settings.';
-	}
-}
+) {}
 
 export class JellyClipperConfig extends Context.Tag('JellyClipperConfig')<
 	JellyClipperConfig,
@@ -82,9 +76,4 @@ export const JellyClipperConfigWithDbLayer = Layer.provideMerge(JellyClipperConf
 export class JellyClipperNotConfiguredError extends Schema.TaggedError<JellyClipperNotConfiguredError>()(
 	'JellyClipperNotConfiguredError',
 	{}
-) {
-	constructor() {
-		super({});
-		this.message = 'Jellyfin is not configured in JellyClipper. Please add at least one user to proceed.';
-	}
-}
+) {}

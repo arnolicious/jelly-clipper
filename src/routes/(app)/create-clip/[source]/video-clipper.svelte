@@ -106,12 +106,14 @@
 			},
 			body: JSON.stringify(body)
 		})
-			.then((res) =>
-				res.json().then(async (data) => {
-					await sleep(200);
-					goto(`/clip/${data.clipId}`);
-				})
-			)
+			.then(async (res) => {
+				if (!res.ok) {
+					throw new Error(`Failed to create clip: ${res.status} ${res.statusText} - ${(await res.json()).message}`);
+				}
+				const data = await res.json();
+				await sleep(200);
+				goto(`/clip/${data.clipId}`);
+			})
 			.finally(() => {
 				isLoading = false;
 			});
@@ -119,7 +121,7 @@
 		toast.promise(createClipPromise, {
 			loading: 'Creating clip...',
 			success: 'Clip created!',
-			error: 'Failed to create clip'
+			error: (e) => (e as Error).message
 		});
 	};
 

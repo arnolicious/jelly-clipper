@@ -3,6 +3,7 @@ import { FileSystem, Path } from '@effect/platform';
 import { PlatformError } from '@effect/platform/Error';
 import { NodeContext } from '@effect/platform-node';
 import { BunContext } from '@effect/platform-bun';
+import type { SrtStringContent } from './CreateClipService';
 
 export const ASSET_ROOT_DIR = 'assets';
 
@@ -21,6 +22,7 @@ export class AssetService extends Context.Tag('AssetService')<
 		ensureAssetDirectoriesExist: () => Effect.Effect<void, PlatformError>;
 		getMediaItemPath: (itemId: string) => string;
 		getFileInfoForItem: (itemId: string) => Effect.Effect<FileInfo, PlatformError | AssetNotOnDisk>;
+		writeSubtitleForClip: (clipId: number, content: SrtStringContent) => Effect.Effect<string, PlatformError>;
 		writeFileStreamForItem: (
 			itemId: string,
 			stream: Stream.Stream<Uint8Array<ArrayBufferLike>>
@@ -92,16 +94,17 @@ const DefaultAssetService = Layer.effect(
 				return yield* getFileInfoForItem(itemId).pipe(
 					Effect.catchTag('AssetNotOnDisk', () => Effect.fail(WriteStreamFailed.make()))
 				);
+			}),
+			writeSubtitleForClip: Effect.fn('AssetService.writeSubtitleForClip')(function* (clipId, content) {
+				const targetPath = path.join(ASSETS_CLIPS_DIR, `${clipId}.srt`);
+				yield* fs.writeFileString(targetPath, content);
+				return targetPath;
 			})
 		});
 	})
 );
 
-export class AssetNotOnDisk extends Schema.TaggedError<AssetNotOnDisk>()('AssetNotOnDisk', {}) {
-	constructor() {
-		super();
-	}
-}
+export class AssetNotOnDisk extends Schema.TaggedError<AssetNotOnDisk>()('AssetNotOnDisk', {}) {}
 
 export class WriteStreamFailed extends Schema.TaggedError<WriteStreamFailed>()('WriteStreamFailed', {}) {
 	constructor() {

@@ -75,12 +75,7 @@ type ClipInfo = typeof ClipInfoSchema.Type;
 export class NoMediaSourceError extends Schema.TaggedError<NoMediaSourceError>()('NoMediaSourceError', {
 	sourceId: Schema.String,
 	mediaInfo: Schema.Object
-}) {
-	constructor(args: { sourceId: string; mediaInfo: object }) {
-		super(args);
-		this.message = `No media source found for item with ID ${args.sourceId}`;
-	}
-}
+}) {}
 
 export class MultipleMediaSourcesError extends Schema.TaggedError<MultipleMediaSourcesError>()(
 	'MultipleMediaSourcesError',
@@ -88,22 +83,12 @@ export class MultipleMediaSourcesError extends Schema.TaggedError<MultipleMediaS
 		sourceId: Schema.String,
 		mediaInfo: Schema.Object
 	}
-) {
-	constructor(args: { sourceId: string; mediaInfo: object }) {
-		super(args);
-		this.message = `Multiple media sources found for item with ID ${args.sourceId}, expected only one.`;
-	}
-}
+) {}
 
 export class NoAudioStreamsError extends Schema.TaggedError<NoAudioStreamsError>()('NoAudioStreamsError', {
 	sourceId: Schema.String,
 	mediaInfo: Schema.Object
-}) {
-	constructor(args: { sourceId: string; mediaInfo: object }) {
-		super(args);
-		this.message = `No audio streams found for item with ID ${args.sourceId}.`;
-	}
-}
+}) {}
 
 export class InvalidSourceFormatError extends Schema.TaggedError<InvalidSourceFormatError>()(
 	'InvalidSourceFormatError',

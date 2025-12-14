@@ -50,7 +50,7 @@ export const actions: Actions = {
 				.execute()
 		)?.value;
 
-		console.log('Logging in to Jellyfin server at', serverUrl);
+		console.info('Logging in to Jellyfin server at', serverUrl);
 
 		if (!form.valid || !serverUrl) {
 			return fail(400, {
@@ -79,7 +79,7 @@ export const actions: Actions = {
 		const accessToken = auth.AccessToken;
 		const user = auth.User;
 
-		console.log('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name);
+		console.info('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name);
 
 		if (!accessToken || !user) {
 			return fail(401, {

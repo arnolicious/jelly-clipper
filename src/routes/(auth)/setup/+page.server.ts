@@ -72,7 +72,7 @@ export const actions: Actions = {
 		const bestServer = bestServerExit.value;
 
 		if (!bestServer) {
-			console.log('No Jellyfin server found at', form.data.jellyfinServerUrl);
+			console.error('No Jellyfin server found at', form.data.jellyfinServerUrl);
 			return fail(400, {
 				form: {
 					...form,
@@ -84,7 +84,7 @@ export const actions: Actions = {
 		}
 
 		const address = bestServer.address.endsWith('/') ? bestServer.address : bestServer.address + '/';
-		console.log('Found Jellyfin server at', address);
+		console.info('Found Jellyfin server at', address);
 
 		return message(form, {
 			status: 'success',
@@ -97,7 +97,7 @@ export const actions: Actions = {
 		const form = await superValidate(formData, zod4(loginFormSchema));
 		const serverUrl = formData.get('serverUrl')?.toString();
 
-		console.log('Logging in to Jellyfin server at', serverUrl);
+		console.info('Logging in to Jellyfin server at', serverUrl);
 
 		if (!form.valid || !serverUrl) {
 			return fail(400, {
@@ -125,7 +125,7 @@ export const actions: Actions = {
 		const accessToken = auth.AccessToken;
 		const user = auth.User;
 
-		console.log('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name);
+		console.info('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name);
 
 		if (!accessToken || !user) {
 			return fail(401, {

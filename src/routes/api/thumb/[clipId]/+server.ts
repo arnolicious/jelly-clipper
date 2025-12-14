@@ -24,15 +24,15 @@ export const GET: RequestHandler = async ({ params }) => {
 	await new Promise<void>((resolve, reject) => {
 		proc
 			.on('start', (commandLine) => {
-				console.log('Spawned Ffmpeg with command: ' + commandLine);
+				console.info('Spawned Ffmpeg with command: ' + commandLine);
 			})
 			.on('error', (err) => {
-				console.log('An error occurred: ' + err.message);
+				console.error('An error occurred: ' + err.message);
 				reject(err);
 			})
 			.on('end', (err) => {
 				if (!err) {
-					console.log('Processing finished !');
+					console.info('Processing finished !');
 					resolve();
 				}
 				reject(err);

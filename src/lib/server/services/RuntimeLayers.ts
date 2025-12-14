@@ -7,6 +7,7 @@ import { AssetNodeLayer } from './AssetService';
 import { DownloadMediaServiceLive } from './DownloadMediaService';
 import type { CurrentUser } from './CurrentUser';
 import { FetchHttpClient } from '@effect/platform';
+import { CreateClipService } from './CreateClipService';
 
 export const UserAgnosticLayer = JellyClipperConfigWithDbLayer.pipe(Layer.merge(AssetNodeLayer))
 	.pipe(Layer.merge(FetchHttpClient.layer), Layer.merge(AnonymousJellyfinApiLayer))
@@ -14,10 +15,15 @@ export const UserAgnosticLayer = JellyClipperConfigWithDbLayer.pipe(Layer.merge(
 
 export const serverRuntime = ManagedRuntime.make(UserAgnosticLayer);
 
-export const AuthenticatedUserLayer = UserAgnosticLayer.pipe(Layer.merge(DownloadMediaServiceLive))
-	.pipe(Layer.merge(ClipService.layer))
-	.pipe(Layer.provideMerge(ItemInfoService.layer))
-	.pipe(Layer.provideMerge(AuthedJellyfinApiLayer));
+export const AuthenticatedUserLayer = Layer.mergeAll(
+	DownloadMediaServiceLive,
+	CreateClipService.layer,
+	ClipService.layer
+).pipe(
+	Layer.provideMerge(ItemInfoService.layer),
+	Layer.provideMerge(AuthedJellyfinApiLayer),
+	Layer.provideMerge(AssetNodeLayer)
+);
 
 // Assert that the AuthenticatedUserLayer only requires the CurrentUser Layer
 type AuthenticatedLayerRequirements = Layer.Layer.Context<typeof AuthenticatedUserLayer>;

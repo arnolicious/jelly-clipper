@@ -30,6 +30,7 @@ export default defineConfig(
 	{
 		rules: {
 			'svelte/no-navigation-without-resolve': 'off',
+			'no-console': ['warn', { allow: ['warn', 'error', 'info', 'debug'] }],
 			'@typescript-eslint/no-unused-vars': [
 				'error',
 				{

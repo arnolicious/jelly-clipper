@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Schema, Stream } from 'effect';
 import { JellyfinApi, JellyfinApiError, TrackSchema } from './JellyfinService';
-import { AssetNodeLayer, AssetService, BigIntFileSize, FileInfoSchema, WriteStreamFailed } from './AssetService';
+import { AssetNodeLayer, AssetService, FileInfoSchema, WriteStreamFailed } from './AssetService';
 import { BadArgument, SystemError } from '@effect/platform/Error';
 import { ItemInfoService, MultipleMediaSourcesError, NoAudioStreamsError, NoMediaSourceError } from './ItemInfoService';
 import { FetchHttpClient, HttpClient } from '@effect/platform';
@@ -152,9 +152,4 @@ const DownloadResult = Schema.Struct({
 
 type DownloadResult = typeof DownloadResult.Type;
 
-class DownloadFailedError extends Schema.TaggedError<DownloadFailedError>()('DownloadFailedError', {}) {
-	constructor() {
-		super();
-		this.message = 'Failed to download media from Jellyfin.';
-	}
-}
+class DownloadFailedError extends Schema.TaggedError<DownloadFailedError>()('DownloadFailedError', {}) {}
