@@ -1,7 +1,7 @@
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
+import type { AuthenticationResult, BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 import { Context, Effect, Layer, Schema } from 'effect';
-import { Jellyfin } from '@jellyfin/sdk';
-import { getMediaInfoApi, getSubtitleApi, getUserLibraryApi } from '@jellyfin/sdk/lib/utils/api';
+import { Jellyfin, type RecommendedServerInfo } from '@jellyfin/sdk';
+import { getMediaInfoApi, getSubtitleApi, getUserApi, getUserLibraryApi } from '@jellyfin/sdk/lib/utils/api';
 import {
 	JellyClipperConfig,
 	JellyClipperConfigWithDbLayer,
@@ -14,48 +14,6 @@ import { MediaSourceSchema, type MediaSource } from '../schemas/MediaSource';
 import type { ParseError } from 'effect/ParseResult';
 
 type JellyfinSdkApi = ReturnType<Jellyfin['createApi']>;
-
-export class JellyfinBaseApi extends Context.Tag('JellyfinBaseApi')<
-	JellyfinBaseApi,
-	{
-		getJellyfinApi: () => Effect.Effect<
-			JellyfinSdkApi,
-			JellyfinNotConfiguredError | JellyClipperNotConfiguredError | DatabaseError | NoCurrentUserError
-		>;
-	}
->() {
-	static readonly layer = Layer.effect(
-		JellyfinBaseApi,
-		Effect.gen(function* () {
-			const clipperConfig = yield* JellyClipperConfig;
-			const currentUser = yield* CurrentUser;
-
-			const getJellyfinApi = Effect.fn('JellyfinBaseApi.getJellyfinApi')(function* () {
-				const jellyfinUrl = yield* clipperConfig.getJellyfinUrl();
-				const user = yield* currentUser.getCurrentUser();
-
-				const jellyfin = new Jellyfin({
-					clientInfo: {
-						name: 'Jelly-Clipper',
-						version: process.env.npm_package_version ?? '0.0.0'
-					},
-					deviceInfo: {
-						id: crypto.randomUUID(),
-						name: 'Jelly-Clipper'
-					}
-				});
-
-				const api = jellyfin.createApi(jellyfinUrl);
-				api.accessToken = user.accessToken;
-				return api;
-			});
-
-			return JellyfinBaseApi.of({ getJellyfinApi });
-		})
-	);
-}
-
-const JellyfinBaseApiWithConfigLayer = Layer.provideMerge(JellyfinBaseApi.layer, JellyClipperConfigWithDbLayer);
 
 interface GetDownloadStreamParams {
 	itemId: string;
@@ -71,13 +29,84 @@ interface CreatePlayBackParams {
 	subtitleStreamIndex?: number;
 }
 
+export class AnonymousJellyfinApi extends Context.Tag('AnonymousJellyfinApi')<
+	AnonymousJellyfinApi,
+	{
+		readonly jellyfinSdk: Jellyfin;
+
+		findServerByAddress: (
+			address: string
+		) => Effect.Effect<RecommendedServerInfo, JellyfinServerNotFound | JellyfinApiError>;
+		authenticateUserByName: (params: {
+			username: string;
+			password: string;
+			serverAddress: string;
+		}) => Effect.Effect<AuthenticationResult, JellyfinApiError>;
+	}
+>() {
+	static readonly layer = Layer.effect(
+		AnonymousJellyfinApi,
+		Effect.sync(() => {
+			const jellyfinSdk = new Jellyfin({
+				clientInfo: {
+					name: 'Jelly-Clipper',
+					version: process.env.npm_package_version ?? '0.0.0'
+				},
+				deviceInfo: {
+					id: crypto.randomUUID(),
+					name: 'Jelly-Clipper'
+				}
+			});
+
+			return AnonymousJellyfinApi.of({
+				findServerByAddress: Effect.fn('JellyfinApi.findServerByAddress')(function* (address: string) {
+					yield* Effect.log(`Finding Jellyfin server at address: ${address}`);
+					const servers = yield* Effect.tryPromise({
+						try: () => jellyfinSdk.discovery.getRecommendedServerCandidates(address),
+						catch: (error) => JellyfinApiError.make({ message: (error as Error).message })
+					});
+					yield* Effect.log(`Found ${servers.length} server candidates`);
+					const bestServer = jellyfinSdk.discovery.findBestServer(servers);
+					if (!bestServer) {
+						yield* Effect.logWarning(`No Jellyfin server found at address: ${address}`);
+						return yield* new JellyfinServerNotFound({ address });
+					}
+					return bestServer;
+				}),
+				authenticateUserByName: Effect.fn('JellyfinApi.authenticateUserByName')(function* ({
+					username,
+					password,
+					serverAddress
+				}) {
+					const auth = yield* Effect.tryPromise({
+						try: () => {
+							const api = jellyfinSdk.createApi(serverAddress);
+							return getUserApi(api).authenticateUserByName({
+								authenticateUserByName: { Username: username, Pw: password }
+							});
+						},
+						catch: (error) => JellyfinApiError.make({ message: (error as Error).message })
+					});
+					return auth.data;
+				}),
+				jellyfinSdk
+			});
+		})
+	);
+}
+
+export const AnonymousJellyfinApiLayer = Layer.provideMerge(AnonymousJellyfinApi.layer, JellyClipperConfigWithDbLayer);
+
 /**
  * Service that interacts with the Jellyfin API
  */
-
 export class JellyfinApi extends Context.Tag('JellyfinApi')<
 	JellyfinApi,
 	{
+		getJellyfinApi: () => Effect.Effect<
+			{ api: JellyfinSdkApi },
+			JellyfinNotConfiguredError | JellyClipperNotConfiguredError | DatabaseError | NoCurrentUserError
+		>;
 		getItemInfo: (
 			sourceId: string
 		) => Effect.Effect<
@@ -127,14 +156,25 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 	static readonly layer = Layer.effect(
 		JellyfinApi,
 		Effect.gen(function* () {
-			const baseApiService = yield* JellyfinBaseApi;
+			// const baseApiService = yield* JellyfinBaseApi;
 			const currentUser = yield* CurrentUser;
+			const clipperConfig = yield* JellyClipperConfig;
+			const anonymousApi = yield* AnonymousJellyfinApi;
+
+			const getJellyfinApi = Effect.fn('JellyfinBaseApi.getJellyfinApi')(function* () {
+				const jellyfinUrl = yield* clipperConfig.getJellyfinUrl();
+				const user = yield* currentUser.getCurrentUser();
+
+				const api = anonymousApi.jellyfinSdk.createApi(jellyfinUrl);
+				api.accessToken = user.accessToken;
+				return { api };
+			});
 
 			const getItemInfo = Effect.fn('JellyfinApi.getItemInfo')(function* (sourceId: string) {
-				const jellyfinApi = yield* baseApiService.getJellyfinApi();
+				const { api } = yield* getJellyfinApi();
 				const response = yield* Effect.tryPromise({
 					try: (signal) =>
-						getUserLibraryApi(jellyfinApi).getItem(
+						getUserLibraryApi(api).getItem(
 							{
 								itemId: sourceId
 							},
@@ -149,14 +189,14 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 				itemId: string,
 				mediaSource: MediaSource
 			) {
-				const jellyfinApi = yield* baseApiService.getJellyfinApi();
+				const { api } = yield* getJellyfinApi();
 				const mediaSourceSubtitles = mediaSource.MediaStreams.filter((stream) => stream.Type === 'Subtitle') || [];
 
 				if (mediaSourceSubtitles.length === 0) {
 					return [];
 				}
 
-				const subtitleApi = getSubtitleApi(jellyfinApi);
+				const subtitleApi = getSubtitleApi(api);
 
 				const subtitleEffects = yield* Effect.forEach(mediaSourceSubtitles, (subtitleStream) =>
 					Effect.tryPromise({
@@ -201,12 +241,12 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 			const createPlaybackSession = Effect.fn('JellyfinApi.createPlaybackSession')(function* (
 				params: CreatePlayBackParams
 			) {
-				const jellyfinApi = yield* baseApiService.getJellyfinApi();
+				const { api } = yield* getJellyfinApi();
 				const user = yield* currentUser.getCurrentUser();
 
 				const { data } = yield* Effect.tryPromise({
 					try: (signal) =>
-						getMediaInfoApi(jellyfinApi).getPlaybackInfo(
+						getMediaInfoApi(api).getPlaybackInfo(
 							{ itemId: params.itemId },
 							{
 								method: 'POST',
@@ -243,7 +283,7 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 			) {
 				const { itemId, mediaSourceId, audioStreamIndex, subtitleStreamIndex } = params;
 				const user = yield* currentUser.getCurrentUser();
-				const jellyfinApi = yield* baseApiService.getJellyfinApi();
+				const { api } = yield* getJellyfinApi();
 				const { mediaSource, sessionId } = yield* createPlaybackSession({
 					itemId: itemId,
 					mediaSourceId: mediaSourceId,
@@ -252,15 +292,15 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 				});
 
 				if (mediaSource.TranscodingUrl) {
-					return `${jellyfinApi.basePath}${mediaSource.TranscodingUrl}`;
+					return `${api.basePath}${mediaSource.TranscodingUrl}`;
 				}
 
 				const streamParams = new URLSearchParams({
 					mediaSourceId: mediaSource?.Id || '',
 					subtitleStreamIndex: subtitleStreamIndex?.toString() || '',
 					audioStreamIndex: audioStreamIndex?.toString() || '',
-					deviceId: jellyfinApi.deviceInfo.id,
-					api_key: jellyfinApi.accessToken,
+					deviceId: api.deviceInfo.id,
+					api_key: api.accessToken,
 					startTimeTicks: '0',
 					maxStreamingBitrate: '',
 					userId: user.id,
@@ -274,12 +314,18 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 					subtitleCodec: 'srt'
 				});
 
-				const directPlayUrl = `${jellyfinApi.basePath}/Videos/${itemId}/stream?${streamParams.toString()}`;
+				const directPlayUrl = `${api.basePath}/Videos/${itemId}/stream?${streamParams.toString()}`;
 
 				return directPlayUrl;
 			});
 
-			return JellyfinApi.of({ getItemInfo, getSubtitleTracks, createPlaybackSession, getDownloadStreamUrl });
+			return JellyfinApi.of({
+				getJellyfinApi,
+				getItemInfo,
+				getSubtitleTracks,
+				createPlaybackSession,
+				getDownloadStreamUrl
+			});
 		})
 	);
 }
@@ -302,8 +348,12 @@ export const TrackSchema = Schema.Struct({
 
 export type Track = typeof TrackSchema.Type;
 
-export const JellyfinApiDependenciesLayer = Layer.provideMerge(JellyfinApi.layer, JellyfinBaseApiWithConfigLayer);
+export const AuthedJellyfinApiLayer = Layer.provideMerge(JellyfinApi.layer, AnonymousJellyfinApiLayer);
 
 export class JellyfinApiError extends Schema.TaggedError<JellyfinApiError>()('JellyfinApiError', {
 	message: Schema.String
+}) {}
+
+export class JellyfinServerNotFound extends Schema.TaggedError<JellyfinServerNotFound>()('JellyfinServerNotFound', {
+	address: Schema.String
 }) {}

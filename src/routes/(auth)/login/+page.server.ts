@@ -6,9 +6,10 @@ import { loginFormSchema } from './schema';
 import { db } from '$lib/server/db';
 import { eq } from 'drizzle-orm';
 import { SETTING_KEYS, settings, users } from '$lib/server/db/schema';
-import { jellyfin } from '$lib/server/jellyfin/jellyfin';
 import { createUserSession, SESSION_EXPIRY } from '$lib/server/db/sessions';
-import { getUserApi } from '@jellyfin/sdk/lib/utils/api';
+import { Effect, Exit } from 'effect';
+import { AnonymousJellyfinApi } from '$lib/server/services/JellyfinService';
+import { serverRuntime } from '$lib/server/services/RuntimeLayers';
 
 export const load: PageServerLoad = async (event) => {
 	// If user is logged in, redirect to the home page
@@ -20,6 +21,22 @@ export const load: PageServerLoad = async (event) => {
 		loginForm: await superValidate(zod4(loginFormSchema))
 	};
 };
+
+const authenticateUser = Effect.fn('login.authenticateUser')(function* (params: {
+	username: string;
+	password: string;
+	serverUrl: string;
+}) {
+	const api = yield* AnonymousJellyfinApi;
+
+	const auth = yield* api.authenticateUserByName({
+		password: params.password,
+		username: params.username,
+		serverAddress: params.serverUrl
+	});
+
+	return auth;
+});
 
 export const actions: Actions = {
 	login: async ({ request, cookies }) => {
@@ -41,13 +58,26 @@ export const actions: Actions = {
 			});
 		}
 
-		const api = jellyfin.createApi(serverUrl);
-		const userApi = getUserApi(api);
-		const auth = await userApi.authenticateUserByName({
-			authenticateUserByName: { Username: form.data.username, Pw: form.data.password }
-		});
-		const accessToken = auth.data.AccessToken;
-		const user = auth.data.User;
+		const authExit = await serverRuntime.runPromiseExit(
+			authenticateUser({
+				username: form.data.username,
+				password: form.data.password,
+				serverUrl: serverUrl
+			})
+		);
+
+		if (Exit.isFailure(authExit)) {
+			const cause = authExit.cause;
+			if (cause._tag === 'Fail' && cause.error._tag === 'JellyfinApiError') {
+				const code = cause.error._tag === 'JellyfinApiError' ? 401 : 500;
+				return fail(code, cause.error.message);
+			}
+			return fail(500, 'An unexpected error occurred: ' + cause.toString());
+		}
+
+		const auth = authExit.value;
+		const accessToken = auth.AccessToken;
+		const user = auth.User;
 
 		console.log('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name);
 
@@ -105,7 +135,7 @@ export const actions: Actions = {
 
 		return {
 			form,
-			user: auth.data.User
+			user: auth.User
 		};
 	}
 };
