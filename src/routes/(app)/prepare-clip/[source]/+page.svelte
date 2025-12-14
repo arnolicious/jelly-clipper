@@ -15,10 +15,10 @@
 
 	let { data }: Props = $props();
 
-	const audioTrackItems = $derived(
-		data.audioStreams?.map((audioTrack) => ({
-			value: audioTrack.Index!.toString(),
-			label: audioTrack.DisplayTitle!
+	const audioTrackItems = $derived<SelectItem[]>(
+		data.audioStreams.map((audioTrack) => ({
+			value: audioTrack.Index.toString(),
+			label: audioTrack.DisplayTitle
 		})) ?? []
 	);
 
@@ -27,7 +27,6 @@
 	let createClipUrl = $derived.by(() => {
 		let url = `/create-clip/${encodeURIComponent(page.params.source!)}`;
 
-		// No need to use the `?` operator here, as we will always have the `apiKey` param from the jellyfin url
 		if (selectedAudioTrack) {
 			url += `&audioStreamIndex=${selectedAudioTrack.value}`;
 		}
@@ -45,8 +44,7 @@
 			<Select.Root
 				bind:value={
 					() => selectedAudioTrack?.value,
-					(newValue) =>
-						(selectedAudioTrack = audioTrackItems?.find((item) => item.value === newValue) ?? null)
+					(newValue) => (selectedAudioTrack = audioTrackItems?.find((item) => item.value === newValue) ?? null)
 				}
 				items={audioTrackItems}
 				type="single"
@@ -65,12 +63,7 @@
 		</div>
 	</div>
 
-	<Button
-		class="w-1/2"
-		data-sveltekit-preload-data="off"
-		disabled={isNavigating}
-		href={createClipUrl}
-	>
+	<Button class="w-1/2" data-sveltekit-preload-data="off" disabled={isNavigating} href={createClipUrl}>
 		{#if isNavigating}
 			Loading...
 		{:else}

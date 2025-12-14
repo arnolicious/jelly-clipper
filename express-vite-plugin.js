@@ -4,6 +4,9 @@ import express from 'express';
 
 const assets = express.static('./assets');
 
+/**
+ * @param {any} server
+ */
 const configureServer = (server) => {
 	server.middlewares.use(assets);
 };

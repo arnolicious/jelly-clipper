@@ -6,8 +6,9 @@ import { loginFormSchema } from './schema';
 import { db } from '$lib/server/db';
 import { eq } from 'drizzle-orm';
 import { SETTING_KEYS, settings, users } from '$lib/server/db/schema';
-import { jellyfin } from '$lib/server/jellyfin/jellyfin.svelte';
+import { jellyfin } from '$lib/server/jellyfin/jellyfin';
 import { createUserSession, SESSION_EXPIRY } from '$lib/server/db/sessions';
+import { getUserApi } from '@jellyfin/sdk/lib/utils/api';
 
 export const load: PageServerLoad = async (event) => {
 	// If user is logged in, redirect to the home page
@@ -41,7 +42,10 @@ export const actions: Actions = {
 		}
 
 		const api = jellyfin.createApi(serverUrl);
-		const auth = await api.authenticateUserByName(form.data.username, form.data.password);
+		const userApi = getUserApi(api);
+		const auth = await userApi.authenticateUserByName({
+			authenticateUserByName: { Username: form.data.username, Pw: form.data.password }
+		});
 		const accessToken = auth.data.AccessToken;
 		const user = auth.data.User;
 

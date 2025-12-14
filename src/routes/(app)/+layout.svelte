@@ -17,11 +17,7 @@
 
 <Card.Root class="flex-1 flex flex-col h-full">
 	<Card.Header class="flex flex-row gap-2 items-center justify-between relative pt-3">
-		<Button
-			variant="ghost"
-			href="/my-clips"
-			class="py-8 flex flex-row gap-2 items-center justify-between"
-		>
+		<Button variant="ghost" href="/my-clips" class="py-8 flex flex-row gap-2 items-center justify-between">
 			<Avatar.Root>
 				<Avatar.Image
 					src="{data.serverAddress}UserImage?UserId={data.user.jellyfinUserId}"

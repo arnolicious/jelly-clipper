@@ -1,26 +1,23 @@
-import { validateSetup } from '$lib/server/db/setup';
-import { fail } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
-import { eq } from 'drizzle-orm';
-import { clips } from '$lib/server/db/schema';
+import { Effect, Exit, Layer } from 'effect';
+import { ClipService } from '$lib/server/services/ClipService';
+import { AuthenticatedUserLayer, serverRuntime } from '$lib/server/services/RuntimeLayers';
+import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/CurrentUser';
+import { onFailure } from '$lib/load-utils';
+
+const getClips = Effect.gen(function* () {
+	const clipService = yield* ClipService;
+
+	return yield* clipService.getAllUserClips();
+});
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const validatedSetup = await validateSetup();
+	const authedLayer = Layer.provideMerge(AuthenticatedUserLayer, makeAuthenticatedRuntimeLayer(locals));
+	const authedRunnable = Effect.provide(getClips, authedLayer);
+	const result = await serverRuntime.runPromiseExit(authedRunnable);
 
-	const user = locals.user;
-
-	if (!validatedSetup.setupIsFinished || !user) {
-		return fail(401);
-	}
-
-	const userClips = await db.query.clips
-		.findMany({
-			where: eq(clips.userId, user.jellyfinUserId)
-		})
-		.execute();
-
-	return {
-		clips: userClips
-	};
+	return Exit.match(result, {
+		onSuccess: (clips) => ({ clips }),
+		onFailure: onFailure
+	});
 };

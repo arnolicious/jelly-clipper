@@ -21,5 +21,5 @@ app.use(handler);
 cron.schedule('30 2 * * *', cleanUpOriginalsFolder, { timezone: process.env.TZ });
 
 app.listen(3000, () => {
-	console.log('listening on port 3000');
+	console.log('Express: listening on port 3000');
 });

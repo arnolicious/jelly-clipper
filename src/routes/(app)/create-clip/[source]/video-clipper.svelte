@@ -6,7 +6,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { getDisplayTitleFromItem, sleep, ticksToSeconds } from '$lib/utils';
-	import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
+	import type { BaseItemDto as OriginalBaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 	import { type MediaTimeChangeEvent, TextTrack } from 'vidstack';
 	import 'vidstack/bundle';
 	import type { MediaPlayerElement } from 'vidstack/elements';
@@ -15,15 +15,17 @@
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import TimelineClipper from './timeline-clipper.svelte';
-	import type { Track } from './+page.server';
+	import type { Track as OldTrack } from './+page.server';
 	import type { SelectItem } from '$lib/types';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import * as Select from '$lib/components/ui/select';
+	import type { BaseItemDto } from '$lib/server/schemas/BaseItemDto';
+	import type { Track } from '$lib/server/services/JellyfinService';
 
 	type Props = {
 		sourceId: string;
-		sourceInfo: BaseItemDto;
-		subtitleTracks?: Track[];
+		sourceInfo: BaseItemDto | OriginalBaseItemDto;
+		subtitleTracks?: ReadonlyArray<Track> | OldTrack[];
 	};
 
 	let { sourceId, sourceInfo, subtitleTracks }: Props = $props();
@@ -40,9 +42,7 @@
 		remoteControl.setTarget(triggerEl);
 	});
 
-	const videoRuntime = $derived(
-		sourceInfo.RunTimeTicks ? ticksToSeconds(sourceInfo.RunTimeTicks) : -1
-	);
+	const videoRuntime = $derived(sourceInfo.RunTimeTicks ? ticksToSeconds(sourceInfo.RunTimeTicks) : -1);
 
 	let clipTitle = $state('');
 
@@ -74,8 +74,7 @@
 			return;
 		}
 
-		const sourceType =
-			sourceInfo.Type === 'Movie' ? 'movie' : sourceInfo.Type === 'Episode' ? 'show' : null;
+		const sourceType = sourceInfo.Type === 'Movie' ? 'movie' : sourceInfo.Type === 'Episode' ? 'show' : null;
 
 		if (!sourceType) {
 			toast.error('Unsupported source type');
@@ -139,18 +138,16 @@
 	let currentTime = $state<number>(0);
 	let isPaused = $state(true);
 
-	const subtitleItems: Array<SelectItem> = [
+	const subtitleItems: Array<SelectItem> = $derived([
 		{ value: 'none', label: 'No Subtitles' },
 		...(subtitleTracks?.map((subtitleTrack) => ({
 			value: subtitleTrack.index.toString(),
-			label: subtitleTrack.title ?? 'Unknown Subtitle Track'
+			label: subtitleTrack.title
 		})) ?? [])
-	];
-	let selectedSubtitleTrackItem = $state<SelectItem | null>(subtitleItems?.[0] ?? null);
+	]);
+	let selectedSubtitleTrackItem = $derived<SelectItem | null>(subtitleItems?.[0] ?? null);
 	let selectedSubtitleTrack = $derived(
-		subtitleTracks?.find(
-			(subtitleTrack) => subtitleTrack.index.toString() === selectedSubtitleTrackItem?.value
-		)
+		subtitleTracks?.find((subtitleTrack) => subtitleTrack.index.toString() === selectedSubtitleTrackItem?.value)
 	);
 
 	$effect(() => {
@@ -187,8 +184,7 @@
 	<Select.Root
 		bind:value={
 			() => selectedSubtitleTrackItem?.value,
-			(newValue) =>
-				(selectedSubtitleTrackItem = subtitleItems?.find((item) => item.value === newValue) ?? null)
+			(newValue) => (selectedSubtitleTrackItem = subtitleItems?.find((item) => item.value === newValue) ?? null)
 		}
 		items={subtitleItems}
 		type="single"

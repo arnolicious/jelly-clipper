@@ -7,7 +7,6 @@
 	import { type SuperValidated, type Infer, superForm, type FormResult } from 'sveltekit-superforms';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { goto } from '$app/navigation';
-	import { fade } from 'svelte/transition';
 	import type { ActionData } from './$types';
 	import { loginFormSchema, type LoginFormSchema } from '../login/schema';
 
@@ -18,6 +17,7 @@
 
 	let { setupForm, loginForm: setupLoginForm }: Props = $props();
 
+	// svelte-ignore state_referenced_locally
 	const jellyfinServerForm = superForm(setupForm, {
 		validators: zod4Client(setupFormSchema),
 		resetForm: false,
@@ -36,6 +36,7 @@
 		onError: ({ result }) => toast.error(result.error.message, { id: 'server-check' })
 	});
 
+	// svelte-ignore state_referenced_locally
 	const loginForm = superForm(setupLoginForm, {
 		validators: zod4Client(loginFormSchema),
 		onSubmit: ({ formData, validators }) => {

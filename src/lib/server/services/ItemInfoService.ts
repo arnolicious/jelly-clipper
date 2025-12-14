@@ -3,13 +3,16 @@ import { JellyfinApi, JellyfinApiError } from './JellyfinService';
 import type { JellyfinNotConfiguredError, JellyClipperNotConfiguredError } from './ConfigService';
 import type { DatabaseError } from './DatabaseService';
 import type { NoCurrentUserError } from './CurrentUser';
+import { BaseItemDtoSchema } from '../schemas/BaseItemDto';
+import { MediaStreamSchema } from '../schemas/MediaStream';
+import type { ParseError } from 'effect/ParseResult';
 
 /**
  * Service that uses the Jellyfin Service to fetch the media information for a given media item.
  */
 
-export class PrepareClipService extends Context.Tag('PrepareClipService')<
-	PrepareClipService,
+export class ItemInfoService extends Context.Tag('ItemInfoService')<
+	ItemInfoService,
 	{
 		/**
 		 * Fetch information about what audio and subtitle streams are available for a given media item.
@@ -26,11 +29,12 @@ export class PrepareClipService extends Context.Tag('PrepareClipService')<
 			| DatabaseError
 			| NoCurrentUserError
 			| NoAudioStreamsError
+			| ParseError
 		>;
 	}
 >() {
 	static readonly layer = Layer.effect(
-		PrepareClipService,
+		ItemInfoService,
 		Effect.gen(function* () {
 			const jellyfinApi = yield* JellyfinApi;
 
@@ -51,33 +55,59 @@ export class PrepareClipService extends Context.Tag('PrepareClipService')<
 				if (!audioStreams || audioStreams.length === 0) {
 					return yield* NoAudioStreamsError.make({ sourceId, mediaInfo: info });
 				}
+				const parsedResult = Schema.decodeUnknownSync(ClipInfoSchema)({ info, audioStreams }, { errors: 'all' });
 
-				return ClipInfoSchema.make({ info, audioStreams });
+				return parsedResult;
 			});
 
-			return PrepareClipService.of({ getClipInfo: getMediaInfo });
+			return ItemInfoService.of({ getClipInfo: getMediaInfo });
 		})
 	);
 }
 
 const ClipInfoSchema = Schema.Struct({
-	info: Schema.Object, // BaseItemDto
-	audioStreams: Schema.Array(Schema.Object) // BaseItemDto
+	info: BaseItemDtoSchema,
+	audioStreams: Schema.Array(MediaStreamSchema).pipe(Schema.minItems(1))
 });
 
 type ClipInfo = typeof ClipInfoSchema.Type;
 
-class NoMediaSourceError extends Schema.TaggedError<NoMediaSourceError>()('NoMediaSourceError', {
+export class NoMediaSourceError extends Schema.TaggedError<NoMediaSourceError>()('NoMediaSourceError', {
 	sourceId: Schema.String,
 	mediaInfo: Schema.Object
-}) {}
+}) {
+	constructor(args: { sourceId: string; mediaInfo: object }) {
+		super(args);
+		this.message = `No media source found for item with ID ${args.sourceId}`;
+	}
+}
 
-class MultipleMediaSourcesError extends Schema.TaggedError<MultipleMediaSourcesError>()('MultipleMediaSourcesError', {
-	sourceId: Schema.String,
-	mediaInfo: Schema.Object
-}) {}
+export class MultipleMediaSourcesError extends Schema.TaggedError<MultipleMediaSourcesError>()(
+	'MultipleMediaSourcesError',
+	{
+		sourceId: Schema.String,
+		mediaInfo: Schema.Object
+	}
+) {
+	constructor(args: { sourceId: string; mediaInfo: object }) {
+		super(args);
+		this.message = `Multiple media sources found for item with ID ${args.sourceId}, expected only one.`;
+	}
+}
 
-class NoAudioStreamsError extends Schema.TaggedError<NoAudioStreamsError>()('NoAudioStreamsError', {
+export class NoAudioStreamsError extends Schema.TaggedError<NoAudioStreamsError>()('NoAudioStreamsError', {
 	sourceId: Schema.String,
 	mediaInfo: Schema.Object
-}) {}
+}) {
+	constructor(args: { sourceId: string; mediaInfo: object }) {
+		super(args);
+		this.message = `No audio streams found for item with ID ${args.sourceId}.`;
+	}
+}
+
+export class InvalidSourceFormatError extends Schema.TaggedError<InvalidSourceFormatError>()(
+	'InvalidSourceFormatError',
+	{
+		source: Schema.String
+	}
+) {}

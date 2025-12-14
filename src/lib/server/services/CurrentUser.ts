@@ -33,4 +33,9 @@ export class User extends Schema.Class<User>('User')({
 	name: Schema.String
 }) {}
 
-export class NoCurrentUserError extends Schema.TaggedError<NoCurrentUserError>()('NoCurrentUserError', {}) {}
+export class NoCurrentUserError extends Schema.TaggedError<NoCurrentUserError>()('NoCurrentUserError', {}) {
+	constructor() {
+		super({});
+		this.message = 'No authenticated user found in the current context.';
+	}
+}

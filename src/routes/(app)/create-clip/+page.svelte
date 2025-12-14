@@ -17,9 +17,7 @@
 	let isNavigating = $derived(!!navigating.to);
 
 	let href = $derived(
-		sourceUrl.length === 0 || isNavigating
-			? undefined
-			: `/prepare-clip/${encodeURIComponent(sourceUrl)}`
+		sourceUrl.length === 0 || isNavigating ? undefined : `/prepare-clip/${encodeURIComponent(sourceUrl)}`
 	);
 
 	let buttonIsDisabled = $derived(isNavigating || sourceUrl.length === 0);

@@ -7,7 +7,7 @@ import { db } from '$lib/server/db/index.js';
 import { SETTING_KEYS, settings, users } from '$lib/server/db/schema.js';
 import { validateSetup } from '$lib/server/db/setup.js';
 import { createUserSession, SESSION_EXPIRY } from '$lib/server/db/sessions.js';
-import { jellyfin } from '$lib/server/jellyfin/jellyfin.svelte.js';
+import { jellyfin } from '$lib/server/jellyfin/jellyfin';
 import { loginFormSchema } from '../login/schema.js';
 
 export const load: PageServerLoad = async () => {
@@ -34,9 +34,7 @@ export const actions: Actions = {
 
 		console.log('Checking Jellyfin server at', form.data.jellyfinServerUrl);
 
-		const servers = await jellyfin.discovery.getRecommendedServerCandidates(
-			form.data.jellyfinServerUrl
-		);
+		const servers = await jellyfin.discovery.getRecommendedServerCandidates(form.data.jellyfinServerUrl);
 		const bestServer = jellyfin.discovery.findBestServer(servers);
 
 		if (!bestServer) {
@@ -51,9 +49,7 @@ export const actions: Actions = {
 			});
 		}
 
-		const address = bestServer.address.endsWith('/')
-			? bestServer.address
-			: bestServer.address + '/';
+		const address = bestServer.address.endsWith('/') ? bestServer.address : bestServer.address + '/';
 		console.log('Found Jellyfin server at', address);
 
 		return message(form, {

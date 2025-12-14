@@ -1,12 +1,12 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { Effect, Exit, Layer, Schema } from 'effect';
-import { PrepareClipService } from '$lib/server/services/PrepareClipService';
+import { Effect, Exit, Layer } from 'effect';
+import { InvalidSourceFormatError, ItemInfoService } from '$lib/server/services/ItemInfoService';
 import { AuthenticatedUserLayer, serverRuntime } from '$lib/server/services/RuntimeLayers';
 import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/CurrentUser';
 
-const getClipInfo = Effect.fn(function* (source: string) {
-	const prepareClip = yield* PrepareClipService;
+const prepareClip = Effect.fn('prepareClip')(function* (source: string) {
+	const prepareClip = yield* ItemInfoService;
 
 	const decodedSource = decodeURIComponent(source);
 
@@ -21,16 +21,12 @@ const getClipInfo = Effect.fn(function* (source: string) {
 	return clipInfo;
 });
 
-class InvalidSourceFormatError extends Schema.TaggedError<InvalidSourceFormatError>()('InvalidSourceFormatError', {
-	source: Schema.String
-}) {}
-
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const authedLayer = Layer.provideMerge(AuthenticatedUserLayer, makeAuthenticatedRuntimeLayer(locals));
-	const authedRunnable = Effect.provide(getClipInfo(params.source), authedLayer);
+	const authedRunnable = Effect.provide(prepareClip(params.source), authedLayer);
 	const result = await serverRuntime.runPromiseExit(authedRunnable);
 
-	const loadResult = Exit.match(result, {
+	return Exit.match(result, {
 		onSuccess: (clipInfo) => clipInfo,
 		onFailure: (cause) => {
 			if (cause._tag === 'Fail') {
@@ -42,6 +38,4 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			return error(500, 'An unexpected error occurred: ' + cause.toString());
 		}
 	});
-	console.log('Load result:', loadResult);
-	return loadResult;
 };

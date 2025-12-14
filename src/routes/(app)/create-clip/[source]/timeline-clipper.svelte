@@ -50,10 +50,7 @@
 		startTime = Math.max(timelineStart, clipStartSecs);
 		endTime = Math.min(timelineEnd, clipEndSecs);
 
-		timeSegments = Array.from(
-			{ length: Math.ceil(visibleDuration / 10) },
-			(_, i) => timelineStart + i * 10
-		);
+		timeSegments = Array.from({ length: Math.ceil(visibleDuration / 10) }, (_, i) => timelineStart + i * 10);
 	};
 
 	const onZoomOut = () => {
@@ -74,10 +71,7 @@
 		startTime = Math.max(timelineStart, clipStartSecs);
 		endTime = Math.min(timelineEnd, clipEndSecs);
 
-		timeSegments = Array.from(
-			{ length: Math.ceil(visibleDuration / 10) },
-			(_, i) => timelineStart + i * 10
-		);
+		timeSegments = Array.from({ length: Math.ceil(visibleDuration / 10) }, (_, i) => timelineStart + i * 10);
 	};
 
 	// Generate time segments every 5 seconds
@@ -168,12 +162,7 @@
 	let touchIsActive = $state(false);
 </script>
 
-<svelte:window
-	onmouseup={onMouseUp}
-	onmousemove={onMouseMove}
-	ontouchend={onTouchEnd}
-	ontouchmove={onTouchMove}
-/>
+<svelte:window onmouseup={onMouseUp} onmousemove={onMouseMove} ontouchend={onTouchEnd} ontouchmove={onTouchMove} />
 
 <div class="flex gap-2 mt-2">
 	<Button variant="outline" onclick={onZoomIn} disabled={visibleDurationPercentage <= 1}>
@@ -185,10 +174,7 @@
 </div>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-	class="flex h-12 relative w-full mb-4 py-1 border-solid border rounded-lg border-primary"
-	bind:this={timelineEl}
->
+<div class="flex h-12 relative w-full mb-4 py-1 border-solid border rounded-lg border-primary" bind:this={timelineEl}>
 	<!-- Time segments -->
 	{#each timeSegments as segment, index (segment)}
 		<div

@@ -6,7 +6,6 @@
 	import { superForm, type FormResult } from 'sveltekit-superforms';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { goto } from '$app/navigation';
-	import { fade } from 'svelte/transition';
 	import type { ActionData, PageData } from './$types';
 	import { loginFormSchema } from '../login/schema';
 
@@ -16,6 +15,7 @@
 
 	let { data }: Props = $props();
 
+	// svelte-ignore state_referenced_locally
 	const loginForm = superForm(data.loginForm, {
 		validators: zod4Client(loginFormSchema),
 		onSubmit: () => {

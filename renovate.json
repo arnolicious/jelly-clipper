@@ -1,25 +1,14 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    "npm:unpublishSafe"
-  ],
-  "schedule": [
-    "* 0-3 * * 1"
-  ],
-  "prConcurrentLimit": 20,
-  "packageRules": [
-    {
-      "matchPackagePatterns": [
-        ".*"
-      ],
-      "matchUpdateTypes": [
-        "major",
-        "minor",
-        "patch"
-      ],
-      "enabled": true
-    }
-  ],
-  "rangeStrategy": "bump"
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": ["config:recommended", "npm:unpublishSafe"],
+	"schedule": ["* 0-3 * * 1"],
+	"prConcurrentLimit": 20,
+	"packageRules": [
+		{
+			"matchPackagePatterns": [".*"],
+			"matchUpdateTypes": ["major", "minor", "patch"],
+			"enabled": true
+		}
+	],
+	"rangeStrategy": "bump"
 }

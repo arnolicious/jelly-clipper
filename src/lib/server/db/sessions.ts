@@ -21,10 +21,7 @@ export async function getUserFromSession(sessionId: string) {
 	// Finc session by ID and check if it's still valid
 	const session = await db.query.sessions
 		.findFirst({
-			where: and(
-				eq(sessions.sessionId, sessionId),
-				gte(sessions.createdAt, new Date(Date.now() - SESSION_EXPIRY))
-			)
+			where: and(eq(sessions.sessionId, sessionId), gte(sessions.createdAt, new Date(Date.now() - SESSION_EXPIRY)))
 		})
 		.execute();
 

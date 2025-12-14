@@ -1,41 +1,11 @@
-import { validateSetup } from '$lib/server/db/setup';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import {
-	getDownloadStreamUrl,
-	getItemInfo,
-	getSubtitleTracks
-} from '$lib/server/jellyfin/jellyfin.svelte';
-import type { SourceInfo } from './types'; // Assuming FileInfo is defined in types.ts or here
-import { createWriteStream, Stats, statSync } from 'node:fs';
-import { unlink } from 'node:fs/promises';
-import { ASSETS_ORIGINALS_DIR } from '$lib/constants';
-import { ensureStaticFoldersExist } from '$lib/server/server-utils';
-import {
-	DOWNLOAD_EVENTS,
-	downloadProgressEventEmitter,
-	type DownloadProgressTypes
-} from './progress-event';
-import path from 'node:path';
-import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
-import { Readable } from 'node:stream';
-import type { ReadableStream } from 'node:stream/web';
-
-// Throttled logging utility
-function emitThrottledProgressEvents(intervalMs = 500) {
-	let lastLogTime = 0;
-
-	return (data: DownloadProgressTypes['PROGRESS_UPDATE']) => {
-		const now = Date.now();
-		if (now - lastLogTime >= intervalMs) {
-			// Emit event to trigger SSE update in /api/download-progress
-			downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.PROGRESS_UPDATE, data);
-
-			lastLogTime = now;
-		}
-	};
-}
-
+import { Effect, Exit, Layer } from 'effect';
+import { DownloadMediaService } from '$lib/server/services/DownloadMediaService';
+import { InvalidSourceFormatError, ItemInfoService } from '$lib/server/services/ItemInfoService';
+import { AuthenticatedUserLayer } from '$lib/server/services/RuntimeLayers';
+import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/CurrentUser';
+import { AssetService } from '$lib/server/services/AssetService';
 export type Track = {
 	index: number;
 	language: string;
@@ -43,219 +13,89 @@ export type Track = {
 	subtitleFile: string;
 };
 
-type FileInfo = Stats & {
-	name: string;
-	extension: string;
-	audioTracks?: Track[];
-	subtitleTracks?: Track[];
-};
+const itemInfoEffect = Effect.fn('itemInfoEffect')(function* (source: string) {
+	const decodedSource = decodeURIComponent(source);
+
+	if (!decodedSource.includes('/')) {
+		return yield* InvalidSourceFormatError.make({ source: decodedSource });
+	}
+	const url = new URL(decodedSource);
+	const sourceId = url.pathname.split('Items/')[1].split('/')[0];
+	const audioStreamIndexParam = url.searchParams.get('audioStreamIndex');
+	const subtitleStreamIndexParam = url.searchParams.get('subtitleStreamIndex');
+
+	const assetService = yield* AssetService;
+	yield* assetService.ensureAssetDirectoriesExist();
+
+	// const downloadService = yield* DownloadMediaService;
+	const itemInfoService = yield* ItemInfoService;
+
+	const itemInfo = yield* itemInfoService.getClipInfo(sourceId);
+
+	return {
+		itemInfo,
+		audioStreamIndex: audioStreamIndexParam ? Number(audioStreamIndexParam) : null,
+		subtitleStreamIndex:
+			subtitleStreamIndexParam && subtitleStreamIndexParam !== 'none' ? Number(subtitleStreamIndexParam) : null
+	};
+});
+
+const downloadEffect = Effect.fn('downloadEffect')(function* (
+	source: string,
+	audioStreamIndex: number | null,
+	subtitleStreamIndex: number | null
+) {
+	const downloadService = yield* DownloadMediaService;
+
+	const result = yield* downloadService.downloadMedia(
+		source,
+		audioStreamIndex !== null ? audioStreamIndex : undefined,
+		subtitleStreamIndex !== null ? subtitleStreamIndex : undefined
+	);
+
+	return result;
+});
 
 export const load: PageServerLoad = async (event) => {
-	const validatedSetup = await validateSetup();
-	const user = event.locals.user;
-	if (!validatedSetup.setupIsFinished || !user) {
-		return error(400, 'Jelly-Clipper is not setup yet');
-	}
-	const jellyfinAddress = validatedSetup.serverAddress;
-	const decodedSource = decodeURIComponent(event.params.source);
-	ensureStaticFoldersExist(); // Ensure this is robust or wrapped if it can throw
+	const authedLayer = Layer.provideMerge(AuthenticatedUserLayer, makeAuthenticatedRuntimeLayer(event.locals));
+	const itemInfoRunnable = Effect.provide(itemInfoEffect(event.params.source), authedLayer);
 
-	let sourceInfo: SourceInfo;
+	const itemInfoResult = await Effect.runPromiseExit(itemInfoRunnable);
 
-	// Extract track parameters from URLParams
-	let videoStreamIndex: null | number = null;
-	let audioStreamIndex: null | number = null;
-	let subtitleStreamIndex: null | number = null;
-
-	if (decodedSource.includes('/')) {
-		const url = new URL(decodedSource);
-		const pathname = url.pathname;
-		const params = url.searchParams;
-		const sourceId = pathname.split('Items/')[1].split('/')[0];
-		const apiKey = params.get('api_key');
-
-		const videoStreamIndexParam = params.get('videoStreamIndex');
-		const audioStreamIndexParam = params.get('audioStreamIndex');
-		const subtitleStreamIndexParam = params.get('subtitleStreamIndex');
-
-		if (videoStreamIndexParam) {
-			videoStreamIndex = Number(videoStreamIndexParam);
+	const itemInfo = Exit.match(itemInfoResult, {
+		onSuccess: (data) => data,
+		onFailure: (cause) => {
+			if (cause._tag === 'Fail') {
+				if (cause.error._tag === 'InvalidSourceFormatError') {
+					throw error(400, cause.error.message);
+				}
+				throw error(500, cause.error.message);
+			}
+			throw error(500, 'An unexpected error occurred: ' + cause.toString());
 		}
-
-		if (audioStreamIndexParam) {
-			audioStreamIndex = Number(audioStreamIndexParam);
-		}
-		if (subtitleStreamIndexParam && subtitleStreamIndexParam !== 'none') {
-			subtitleStreamIndex = Number(subtitleStreamIndexParam);
-		}
-
-		if (!apiKey) {
-			return error(400, 'Source is not a URL');
-		}
-		sourceInfo = {
-			sourceId,
-			apiKey
-		};
-	} else {
-		// Consider if this case should throw an error earlier or be handled differently
-		return error(400, 'Invalid source format: Expected a URL path.');
-	}
-
-	const filePath = path.join(ASSETS_ORIGINALS_DIR, `${sourceInfo.sourceId}.mp4`);
-	// const transcodedFilePath = path.join(
-	// 	ASSETS_ORIGINALS_DIR,
-	// 	`transcoded-${sourceInfo.sourceId}.mp4`
-	// );
-	let mediaItemInfo: BaseItemDto | null = null;
-
-	try {
-		mediaItemInfo = await getItemInfo(
-			jellyfinAddress,
-			user.jellyfinAccessToken,
-			sourceInfo.sourceId
-		);
-	} catch (infoErr) {
-		console.error(`Failed to get item info for ${sourceInfo.sourceId}:`, infoErr);
-		// No download event emitter here as download hasn't started or is for a different system part
-		throw error(
-			500,
-			`Failed to retrieve media information from Jellyfin: ${(infoErr as Error).message}`
-		);
-	}
-
-	const subtitleTracksPromise = getSubtitleTracks({
-		serverAddress: jellyfinAddress,
-		accessToken: user.jellyfinAccessToken,
-		itemId: sourceInfo.sourceId,
-		mediaSource: mediaItemInfo.MediaSources![0]!
 	});
 
-	try {
-		const existingFileStats = statSync(filePath);
+	const downloadProgram = downloadEffect(
+		itemInfo.itemInfo.info.Id,
+		itemInfo.audioStreamIndex,
+		itemInfo.subtitleStreamIndex
+	);
 
-		// Check if file size matches the expected size
-		if (existingFileStats.size === mediaItemInfo.MediaSources?.[0].Size) {
-			// Get track info
-			return {
-				user,
-				serverAddress: jellyfinAddress,
-				sourceInfo: mediaItemInfo, // Return the fetched info
-				subtitleTracks: subtitleTracksPromise,
-				fileInfo: {
-					name: sourceInfo.sourceId,
-					extension: 'mp4',
-					...existingFileStats
-				}
-			};
+	const downloadRunnable = Effect.provide(downloadProgram, authedLayer);
+
+	const downloadResult = Effect.runPromiseExit(downloadRunnable).then((exit) => {
+		if (exit._tag === 'Success') {
+			return exit.value;
 		} else {
-			console.log(
-				`File size mismatch for ${sourceInfo.sourceId}. Expected: ${mediaItemInfo.MediaSources?.[0].Size}, Found: ${existingFileStats.size}`
-			);
-			// Clean up the existing file if sizes don't match
-			await unlink(filePath);
-			console.log(`Removed mismatched file: ${filePath}`);
+			if (exit.cause._tag === 'Fail') {
+				return { errorMessage: `${exit.cause.error._tag}: ${exit.cause.error.message}` };
+			}
+			return { errorMessage: `An unexpected error occurred: ${exit.cause.toString()}` };
 		}
-	} catch (_e) {
-		// File does not exist, proceed to download.
-	}
+	});
 
-	// Download logic starts here
-	try {
-		const totalSize = mediaItemInfo.MediaSources?.[0].Size ?? 0;
-		downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.START, {
-			totalSizeBytes: totalSize
-		} satisfies DownloadProgressTypes['START']);
-		const { url } = await getDownloadStreamUrl({
-			userId: user.jellyfinUserId,
-			serverAddress: jellyfinAddress,
-			accessToken: user.jellyfinAccessToken,
-			itemId: sourceInfo.sourceId,
-			mediaSourceId: mediaItemInfo.MediaSources?.[0].Id ?? undefined,
-			audioStreamIndex,
-			subtitleStreamIndex
-		});
-
-		// Download the url as a stream
-		const response = await fetch(url);
-
-		const responseStream = Readable.fromWeb(response.body as ReadableStream);
-		const fileStream = createWriteStream(filePath);
-		let downloadedSize = 0;
-		const progressEmitter = emitThrottledProgressEvents(1000); // Emit progress more frequently if desired
-
-		const downloadPromise = new Promise<FileInfo>((resolve, reject) => {
-			responseStream.on('data', (chunk) => {
-				downloadedSize += chunk.length;
-				const progress = totalSize > 0 ? Math.round((downloadedSize / totalSize) * 100) : 0;
-
-				progressEmitter({
-					percentage: progress,
-					totalSizeBytes: totalSize,
-					downloadedBytes: downloadedSize
-				});
-			});
-
-			responseStream.pipe(fileStream);
-
-			fileStream.on('finish', async () => {
-				try {
-					const finalFileStats = statSync(filePath);
-					console.log(`Download completed successfully for ${sourceInfo.sourceId}.`);
-
-					resolve({
-						name: sourceInfo.sourceId,
-						extension: 'mp4',
-						...finalFileStats
-					});
-					// });
-				} catch (statErr) {
-					console.error(`Error stating file ${filePath} after download:`, statErr);
-					downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.ERROR, {
-						message: (statErr as Error).message || 'Error stating file post-download'
-					});
-					reject(statErr);
-				}
-			});
-
-			fileStream.on('error', (err) => {
-				console.error(`File stream error for ${filePath}:`, err);
-				downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.ERROR, {
-					message: err.message || 'File stream error'
-				});
-				reject(err);
-			});
-
-			responseStream.on('error', (err) => {
-				console.error(`Response stream error during download for ${sourceInfo.sourceId}:`, err);
-				downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.ERROR, {
-					message: err.message || 'Response stream error'
-				});
-				reject(err);
-			});
-		});
-
-		return {
-			user,
-			serverAddress: jellyfinAddress,
-			sourceInfo: mediaItemInfo,
-			subtitleTracks: subtitleTracksPromise,
-			fileInfo: downloadPromise // SvelteKit will await this promise
-		};
-	} catch (downloadErr) {
-		console.error(`Error during download process for ${sourceInfo.sourceId}:`, downloadErr);
-		downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.ERROR, {
-			message: (downloadErr as Error).message || 'Download process failed'
-		});
-
-		// Attempt to clean up partially downloaded file
-		try {
-			await unlink(filePath);
-			console.log(`Cleaned up partially downloaded file: ${filePath}`);
-		} catch (cleanupErr) {
-			// Log if cleanup fails but don't let it mask the original download error
-			console.error(`Failed to clean up partial file ${filePath}:`, cleanupErr);
-		}
-
-		throw error(500, `Failed to download media: ${(downloadErr as Error).message}`);
-	}
+	return {
+		itemInfo: itemInfo.itemInfo.info,
+		download: downloadResult
+	};
 };
