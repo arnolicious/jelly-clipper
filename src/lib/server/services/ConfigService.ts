@@ -1,69 +1,37 @@
 import { Context, Effect, Layer, Schema } from 'effect';
-import { DatabaseError, DB } from './DatabaseService';
+import { DatabaseError, DatabaseService } from './DatabaseService';
 import { SETTING_KEYS, settings } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
-export class JellyfinConfig extends Context.Tag('JellyfinConfig')<
-	JellyfinConfig,
+export class JellyClipperConfig extends Context.Tag('JellyClipperConfig')<
+	JellyClipperConfig,
 	{
-		readonly getJellyfinUrl: () => Effect.Effect<string, JellyfinNotConfiguredError | DatabaseError>;
+		readonly getJellyfinUrl: () => Effect.Effect<string, JellyClipperNotConfiguredError | DatabaseError>;
 	}
 >() {
-	static readonly layer = Layer.effect(
-		JellyfinConfig,
+	static readonly Default = Layer.effect(
+		JellyClipperConfig,
 		Effect.gen(function* () {
-			const db = yield* DB;
+			const db = yield* DatabaseService;
 
-			const getJellyfinUrl = Effect.fn('JellyfinConfig.getJellyfinUrl')(function* () {
-				const jellyfinUrlSetting = yield* db.runQuery((db) =>
+			const getJellyfinUrl = Effect.fn('JellyClipperConfig.getJellyfinUrl')(function* () {
+				const maybeJellyfinUrl = yield* db.runQuery((db) =>
 					db.query.settings
 						.findFirst({
 							where: eq(settings.key, SETTING_KEYS.jellyfinUrl)
 						})
 						.execute()
 				);
-				if (!jellyfinUrlSetting?.value) {
-					return yield* JellyfinNotConfiguredError.make();
+				if (!maybeJellyfinUrl?.value) {
+					return yield* JellyClipperNotConfiguredError.make();
 				}
-				return jellyfinUrlSetting.value;
-			});
-
-			return JellyfinConfig.of({ getJellyfinUrl });
-		})
-	);
-}
-
-const JellyfinConfigWithDbLayer = Layer.provideMerge(JellyfinConfig.layer, DB.layer);
-
-export class JellyfinNotConfiguredError extends Schema.TaggedError<JellyfinNotConfiguredError>()(
-	'JellyfinNotConfiguredError',
-	{}
-) {}
-
-export class JellyClipperConfig extends Context.Tag('JellyClipperConfig')<
-	JellyClipperConfig,
-	{
-		readonly getJellyfinUrl: () => Effect.Effect<
-			string,
-			JellyfinNotConfiguredError | JellyClipperNotConfiguredError | DatabaseError
-		>;
-	}
->() {
-	static readonly layer = Layer.effect(
-		JellyClipperConfig,
-		Effect.gen(function* () {
-			const db = yield* DB;
-			const jellyfinConfig = yield* JellyfinConfig;
-
-			const getJellyfinUrl = Effect.fn('JellyClipperConfig.getJellyfinUrl')(function* () {
-				const maybeJellyfinUrl = yield* jellyfinConfig.getJellyfinUrl();
 
 				const dbUsers = yield* db.runQuery((db) => db.query.users.findMany().execute());
 
 				if (dbUsers.length === 0) {
 					return yield* JellyClipperNotConfiguredError.make();
 				}
-				return maybeJellyfinUrl;
+				return maybeJellyfinUrl.value;
 			});
 
 			return JellyClipperConfig.of({ getJellyfinUrl });
@@ -71,7 +39,7 @@ export class JellyClipperConfig extends Context.Tag('JellyClipperConfig')<
 	);
 }
 
-export const JellyClipperConfigWithDbLayer = Layer.provideMerge(JellyClipperConfig.layer, JellyfinConfigWithDbLayer);
+// export const JellyClipperConfigWithDbLayer = Layer.provideMerge(JellyClipperConfig.Default, JellyfinConfigWithDbLayer);
 
 export class JellyClipperNotConfiguredError extends Schema.TaggedError<JellyClipperNotConfiguredError>()(
 	'JellyClipperNotConfiguredError',

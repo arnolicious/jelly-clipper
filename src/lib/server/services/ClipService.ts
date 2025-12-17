@@ -1,6 +1,6 @@
 import { Context, Effect, Layer } from 'effect';
-import { CurrentUser, NoCurrentUserError } from './CurrentUser.ts';
-import { DatabaseError, DB } from './DatabaseService.ts';
+import { UserSession, NoCurrentUserError } from './UserSession.ts';
+import { DatabaseError, DatabaseService } from './DatabaseService.ts';
 import { eq } from 'drizzle-orm';
 import { clips } from '../db/schema.js';
 import type { Clip } from '$lib/types.ts';
@@ -11,11 +11,11 @@ export class ClipService extends Context.Tag('ClipService')<
 		getAllUserClips: () => Effect.Effect<Clip[], DatabaseError | NoCurrentUserError>;
 	}
 >() {
-	static readonly layer = Layer.effect(
+	static readonly Default = Layer.effect(
 		ClipService,
 		Effect.gen(function* () {
-			const currentUser = yield* CurrentUser;
-			const db = yield* DB;
+			const currentUser = yield* UserSession;
+			const db = yield* DatabaseService;
 
 			const getAllUserClips = Effect.fn('ClipService.getAllUserClips')(function* () {
 				const user = yield* currentUser.getCurrentUser();

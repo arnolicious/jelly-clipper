@@ -1,17 +1,23 @@
-import { Context, Effect, Layer, Schema, Stream } from 'effect';
-import { JellyfinApi, JellyfinApiError, TrackSchema } from './JellyfinService';
-import { AssetNodeLayer, AssetService, FileInfoSchema, WriteStreamFailed } from './AssetService';
+import { Context, DateTime, Effect, Layer, Schema, Stream } from 'effect';
+import {
+	JellyfinApi,
+	JellyfinApiError,
+	MultipleMediaSourcesError,
+	NoAudioStreamsError,
+	NoMediaSourceError,
+	TrackSchema
+} from './JellyfinService';
+import { AssetService, FileInfoSchema, WriteStreamFailed } from './AssetService';
 import { BadArgument, SystemError } from '@effect/platform/Error';
-import { ItemInfoService, MultipleMediaSourcesError, NoAudioStreamsError, NoMediaSourceError } from './ItemInfoService';
-import { FetchHttpClient, HttpClient } from '@effect/platform';
+import { HttpClient } from '@effect/platform';
 import type { DatabaseError } from './DatabaseService';
-import type { NoCurrentUserError } from './CurrentUser';
-import type { JellyClipperNotConfiguredError, JellyfinNotConfiguredError } from './ConfigService';
+import type { NoCurrentUserError } from './UserSession';
+import type { JellyClipperNotConfiguredError } from './ConfigService';
 import type { ParseError } from 'effect/ParseResult';
 import type { RequestError, ResponseError } from '@effect/platform/HttpClientError';
 import { DOWNLOAD_EVENTS, downloadProgressEventEmitter, type DownloadProgressTypes } from '$lib/progress-event';
 
-// const retryDownloadPolicy = Schedule.addDelay(Schedule.recurs(3), () => "2 seconds");
+const DOWNLOAD_EVENT_EMISSION_RATE_MS = 2000;
 
 export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 	DownloadMediaService,
@@ -23,7 +29,6 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 		) => Effect.Effect<
 			DownloadResult,
 			| JellyfinApiError
-			| JellyfinNotConfiguredError
 			| JellyClipperNotConfiguredError
 			| DatabaseError
 			| NoCurrentUserError
@@ -39,12 +44,11 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 		>;
 	}
 >() {
-	static layer = Layer.effect(
+	static readonly Default = Layer.effect(
 		DownloadMediaService,
 		Effect.gen(function* () {
 			const jellyfinApi = yield* JellyfinApi;
 			const assetService = yield* AssetService;
-			const itemInfoService = yield* ItemInfoService;
 			const http = yield* HttpClient.HttpClient;
 
 			const downloadMedia = Effect.fn('DownloadMediaService.downloadMedia')(function* (
@@ -57,7 +61,7 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 					.getFileInfoForItem(itemId)
 					.pipe(Effect.catchTag('AssetNotOnDisk', () => Effect.succeed(null)));
 
-				const clipInfo = yield* itemInfoService.getClipInfo(itemId);
+				const clipInfo = yield* jellyfinApi.getClipInfo(itemId);
 				const mediaSource = clipInfo.info.MediaSources[0];
 				const subtitleTracks = yield* jellyfinApi.getSubtitleTracks(itemId, mediaSource);
 
@@ -100,20 +104,22 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 
 				let downloadedSize = 0;
 
+				let lastEmissionTime = yield* DateTime.now;
+
 				const downloadListener = (chunk: Uint8Array) =>
 					Effect.gen(function* () {
-						yield* Effect.logDebug(`Downloaded chunk of size ${chunk.byteLength} for item ${itemId}`);
 						downloadedSize += chunk.byteLength;
 
-						if (
-							Math.floor(((downloadedSize - chunk.byteLength) / mediaSource.Size) * 10) <
-							Math.floor((downloadedSize / mediaSource.Size) * 10)
-						) {
+						const now = yield* DateTime.now;
+						// Emit progress update events at most every DOWNLOAD_EVENT_EMISSION_RATE milliseconds
+						if (DateTime.distance(lastEmissionTime, now) >= DOWNLOAD_EVENT_EMISSION_RATE_MS) {
+							yield* Effect.logDebug(`Downloaded chunk of size ${chunk.byteLength} for item ${itemId}`);
 							downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.PROGRESS_UPDATE, {
 								percentage: Math.round(100 * (downloadedSize / mediaSource.Size) * 100) / 100,
 								totalSizeBytes: mediaSource.Size,
 								downloadedBytes: downloadedSize
 							} satisfies DownloadProgressTypes['PROGRESS_UPDATE']);
+							lastEmissionTime = now;
 						}
 					});
 
@@ -139,11 +145,6 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 		})
 	);
 }
-
-export const DownloadMediaServiceLive = DownloadMediaService.layer.pipe(
-	Layer.provide(FetchHttpClient.layer),
-	Layer.provide(AssetNodeLayer)
-);
 
 const DownloadResult = Schema.Struct({
 	fileInfo: FileInfoSchema,

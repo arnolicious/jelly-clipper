@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Schema } from 'effect';
-import { DatabaseError, DB } from './DatabaseService';
-import { CurrentUser, NoCurrentUserError } from './CurrentUser';
+import { DatabaseError, DatabaseService } from './DatabaseService';
+import { UserSession, NoCurrentUserError } from './UserSession';
 import { clips } from '../db/schema';
 import { AssetService } from './AssetService';
 import { AvError, AVService, SecondsSchema } from './AVService';
@@ -13,11 +13,11 @@ export class CreateClipService extends Context.Tag('CreateClipService')<
 		) => Effect.Effect<number, ClipNotCreated | DatabaseError | FfmpegError | NoCurrentUserError | AvError>;
 	}
 >() {
-	static layer = Layer.effect(
+	static readonly Default = Layer.effect(
 		CreateClipService,
 		Effect.gen(function* () {
-			const db = yield* DB;
-			const currentUser = yield* CurrentUser;
+			const db = yield* DatabaseService;
+			const currentUser = yield* UserSession;
 			const assetService = yield* AssetService;
 			const av = yield* AVService;
 

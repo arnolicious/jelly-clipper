@@ -1,23 +1,18 @@
 import type { PageServerLoad } from './$types';
-import { Effect, Exit, Layer } from 'effect';
+import { Effect } from 'effect';
 import { ClipService } from '$lib/server/services/ClipService';
-import { AuthenticatedUserLayer, serverRuntime } from '$lib/server/services/RuntimeLayers';
-import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/CurrentUser';
-import { onFailure } from '$lib/load-utils';
+import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/UserSession';
+import { runLoader } from '$lib/server/load-utils';
+import { OkLoader } from '$lib/server/responses';
 
-const getClips = Effect.gen(function* () {
-	const clipService = yield* ClipService;
+export const load: PageServerLoad = (event) =>
+	runLoader(
+		Effect.gen(function* () {
+			const clipService = yield* ClipService;
 
-	return yield* clipService.getAllUserClips();
-}).pipe(Effect.withLogSpan('my-clips.getClips'));
+			const clips = yield* clipService.getAllUserClips();
 
-export const load: PageServerLoad = async ({ locals }) => {
-	const authedLayer = Layer.provideMerge(AuthenticatedUserLayer, makeAuthenticatedRuntimeLayer(locals));
-	const authedRunnable = Effect.provide(getClips, authedLayer);
-	const result = await serverRuntime.runPromiseExit(authedRunnable);
-
-	return Exit.match(result, {
-		onSuccess: (clips) => ({ clips }),
-		onFailure: onFailure
-	});
-};
+			return new OkLoader({ data: { clips } });
+		}).pipe(Effect.provide(makeAuthenticatedRuntimeLayer(event.locals))),
+		'/my-clips'
+	);

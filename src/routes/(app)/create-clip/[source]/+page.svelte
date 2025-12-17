@@ -7,6 +7,9 @@
 	import Progress from '$lib/components/ui/progress/progress.svelte';
 	import type { Readable } from 'svelte/store';
 	import type { DownloadProgressDataType } from '$lib/progress-event';
+	import Button from '$lib/components/ui/button/button.svelte';
+	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 
 	type Props = {
 		data: PageData;
@@ -37,6 +40,16 @@
 			progress.totalSizeBytes / 1000000
 		).toFixed(2)} MB)`;
 	}
+
+	const cancelDownload = async () => {
+		const response = await fetch(`/api/cancel-download/${data.itemInfo.Id}`);
+		if (response.ok) {
+			toast.success('Download cancelled');
+			goto('/');
+		} else {
+			toast.error('Failed to cancel download');
+		}
+	};
 </script>
 
 {#await data.download}
@@ -57,6 +70,7 @@
 			<span class="text-slate-400 italic">
 				{progressString}
 			</span>
+			<Button variant="destructive" onclick={cancelDownload}>Cancel Download</Button>
 		</div>
 	{/if}
 {:then resultExit}

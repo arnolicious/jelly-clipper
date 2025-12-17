@@ -2,17 +2,14 @@ import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 import { Context, Effect, Layer, Schema } from 'effect';
 import { Jellyfin, type RecommendedServerInfo } from '@jellyfin/sdk';
 import { getMediaInfoApi, getSubtitleApi, getUserApi, getUserLibraryApi } from '@jellyfin/sdk/lib/utils/api';
-import {
-	JellyClipperConfig,
-	JellyClipperConfigWithDbLayer,
-	JellyClipperNotConfiguredError,
-	JellyfinNotConfiguredError
-} from './ConfigService';
+import { JellyClipperConfig, JellyClipperNotConfiguredError } from './ConfigService';
 import type { DatabaseError } from './DatabaseService';
-import { CurrentUser, NoCurrentUserError } from './CurrentUser';
+import { UserSession, NoCurrentUserError } from './UserSession';
 import { MediaSourceSchema, type MediaSource } from '../schemas/MediaSource';
 import { type AuthenticationResult, AuthenticationResultSchema } from '../schemas/AuthenticationResult';
 import type { ParseError } from 'effect/ParseResult';
+import { BaseItemDtoSchema } from '../schemas/BaseItemDto';
+import { MediaStreamSchema } from '../schemas/MediaStream';
 
 type JellyfinSdkApi = ReturnType<Jellyfin['createApi']>;
 
@@ -45,7 +42,7 @@ export class AnonymousJellyfinApi extends Context.Tag('AnonymousJellyfinApi')<
 		}) => Effect.Effect<AuthenticationResult, JellyfinApiError | ParseError>;
 	}
 >() {
-	static readonly layer = Layer.effect(
+	static readonly Default = Layer.effect(
 		AnonymousJellyfinApi,
 		Effect.sync(() => {
 			const jellyfinSdk = new Jellyfin({
@@ -97,7 +94,10 @@ export class AnonymousJellyfinApi extends Context.Tag('AnonymousJellyfinApi')<
 	);
 }
 
-export const AnonymousJellyfinApiLayer = Layer.provideMerge(AnonymousJellyfinApi.layer, JellyClipperConfigWithDbLayer);
+// export const AnonymousJellyfinApiLayer = Layer.provideMerge(
+// 	AnonymousJellyfinApi.Default,
+// 	JellyClipperConfigWithDbLayer
+// );
 
 /**
  * Service that interacts with the Jellyfin API
@@ -107,59 +107,56 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 	{
 		getJellyfinApi: () => Effect.Effect<
 			{ api: JellyfinSdkApi },
-			JellyfinNotConfiguredError | JellyClipperNotConfiguredError | DatabaseError | NoCurrentUserError
+			JellyClipperNotConfiguredError | DatabaseError | NoCurrentUserError
 		>;
 		getItemInfo: (
 			sourceId: string
 		) => Effect.Effect<
 			BaseItemDto,
-			| JellyfinNotConfiguredError
-			| JellyClipperNotConfiguredError
-			| DatabaseError
-			| JellyfinApiError
-			| NoCurrentUserError
+			JellyClipperNotConfiguredError | DatabaseError | JellyfinApiError | NoCurrentUserError
 		>;
 		getSubtitleTracks: (
 			itemId: string,
 			mediaSource: MediaSource
 		) => Effect.Effect<
 			Track[],
-			| DatabaseError
-			| JellyClipperNotConfiguredError
-			| JellyfinApiError
-			| JellyfinNotConfiguredError
-			| NoCurrentUserError
-			| ParseError
+			DatabaseError | JellyClipperNotConfiguredError | JellyfinApiError | NoCurrentUserError | ParseError
 		>;
 		createPlaybackSession: (
 			params: CreatePlayBackParams
 		) => Effect.Effect<
 			PlaybackSession,
-			| DatabaseError
-			| JellyClipperNotConfiguredError
-			| JellyfinApiError
-			| JellyfinNotConfiguredError
-			| NoCurrentUserError
-			| ParseError
+			DatabaseError | JellyClipperNotConfiguredError | JellyfinApiError | NoCurrentUserError | ParseError
 		>;
 		getDownloadStreamUrl: (
 			params: GetDownloadStreamParams
 		) => Effect.Effect<
 			string,
-			| DatabaseError
-			| JellyClipperNotConfiguredError
+			DatabaseError | JellyClipperNotConfiguredError | JellyfinApiError | NoCurrentUserError | ParseError
+		>;
+		/**
+		 * Fetch information about what audio and subtitle streams are available for a given media item.
+		 */
+		getClipInfo: (
+			sourceId: string
+		) => Effect.Effect<
+			ClipInfo,
+			| NoMediaSourceError
+			| MultipleMediaSourcesError
 			| JellyfinApiError
-			| JellyfinNotConfiguredError
+			| JellyClipperNotConfiguredError
+			| DatabaseError
 			| NoCurrentUserError
+			| NoAudioStreamsError
 			| ParseError
 		>;
 	}
 >() {
-	static readonly layer = Layer.effect(
+	static readonly Default = Layer.effect(
 		JellyfinApi,
 		Effect.gen(function* () {
 			// const baseApiService = yield* JellyfinBaseApi;
-			const currentUser = yield* CurrentUser;
+			const currentUser = yield* UserSession;
 			const clipperConfig = yield* JellyClipperConfig;
 			const anonymousApi = yield* AnonymousJellyfinApi;
 
@@ -319,12 +316,35 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 				return directPlayUrl;
 			});
 
+			const getClipInfo = Effect.fn('MediaInfoService.getClipInfo')(function* (sourceId: string) {
+				const info = yield* getItemInfo(sourceId);
+				const mediaSource = info?.MediaSources?.[0];
+
+				if (!mediaSource) {
+					return yield* NoMediaSourceError.make({ sourceId, mediaInfo: info });
+				}
+
+				if (info.MediaSources!.length > 1) {
+					return yield* MultipleMediaSourcesError.make({ sourceId, mediaInfo: info });
+				}
+
+				const audioStreams = mediaSource.MediaStreams?.filter((stream) => stream.Type === 'Audio');
+
+				if (!audioStreams || audioStreams.length === 0) {
+					return yield* NoAudioStreamsError.make({ sourceId, mediaInfo: info });
+				}
+				const parsedResult = Schema.decodeUnknownSync(ClipInfoSchema)({ info, audioStreams }, { errors: 'all' });
+				yield* Effect.logDebug(`Fetched media info for item ${sourceId}`);
+				return parsedResult;
+			});
+
 			return JellyfinApi.of({
 				getJellyfinApi,
 				getItemInfo,
 				getSubtitleTracks,
 				createPlaybackSession,
-				getDownloadStreamUrl
+				getDownloadStreamUrl,
+				getClipInfo
 			});
 		})
 	);
@@ -348,7 +368,7 @@ export const TrackSchema = Schema.Struct({
 
 export type Track = typeof TrackSchema.Type;
 
-export const AuthedJellyfinApiLayer = Layer.provideMerge(JellyfinApi.layer, AnonymousJellyfinApiLayer);
+// export const AuthedJellyfinApiLayer = Layer.provideMerge(JellyfinApi.Default, AnonymousJellyfinApiLayer);
 
 export class JellyfinApiError extends Schema.TaggedError<JellyfinApiError>()('JellyfinApiError', {
 	message: Schema.String
@@ -357,3 +377,35 @@ export class JellyfinApiError extends Schema.TaggedError<JellyfinApiError>()('Je
 export class JellyfinServerNotFound extends Schema.TaggedError<JellyfinServerNotFound>()('JellyfinServerNotFound', {
 	address: Schema.String
 }) {}
+
+const ClipInfoSchema = Schema.Struct({
+	info: BaseItemDtoSchema,
+	audioStreams: Schema.Array(MediaStreamSchema).pipe(Schema.minItems(1))
+});
+
+type ClipInfo = typeof ClipInfoSchema.Type;
+
+export class NoMediaSourceError extends Schema.TaggedError<NoMediaSourceError>()('NoMediaSourceError', {
+	sourceId: Schema.String,
+	mediaInfo: Schema.Object
+}) {}
+
+export class MultipleMediaSourcesError extends Schema.TaggedError<MultipleMediaSourcesError>()(
+	'MultipleMediaSourcesError',
+	{
+		sourceId: Schema.String,
+		mediaInfo: Schema.Object
+	}
+) {}
+
+export class NoAudioStreamsError extends Schema.TaggedError<NoAudioStreamsError>()('NoAudioStreamsError', {
+	sourceId: Schema.String,
+	mediaInfo: Schema.Object
+}) {}
+
+export class InvalidSourceFormatError extends Schema.TaggedError<InvalidSourceFormatError>()(
+	'InvalidSourceFormatError',
+	{
+		source: Schema.String
+	}
+) {}

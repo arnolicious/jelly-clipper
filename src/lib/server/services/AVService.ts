@@ -30,127 +30,121 @@ export class AVService extends Context.Tag('AVService')<
 		clipVideo: (params: ClipVideoParams) => Effect.Effect<void, AvError>;
 		createThumbnailForClip: (clipId: number, thumbnailPercent?: number) => Effect.Effect<string, AvError>;
 	}
->() {}
+>() {
+	static readonly FfmpegLayer = Layer.effect(
+		AVService,
+		Effect.gen(function* () {
+			const assetService = yield* AssetService;
 
-export const FfmpegLayer = Layer.effect(
-	AVService,
-	Effect.gen(function* () {
-		const assetService = yield* AssetService;
+			return AVService.of({
+				clipVideo: Effect.fn('AVService.clipVideo')(function* (params) {
+					const proc = ffmpeg({ source: params.sourceUri });
+					const duration = params.end - params.start;
+					const subtitle = params.subtitleTrack;
 
-		return AVService.of({
-			clipVideo: Effect.fn('AVService.clipVideo')(function* (params) {
-				const proc = ffmpeg({ source: params.sourceUri });
-				const duration = params.end - params.start;
-				const subtitle = params.subtitleTrack;
+					proc.setStartTime(params.start).setDuration(duration);
 
-				proc.setStartTime(params.start).setDuration(duration);
+					if (subtitle && subtitle.fileContent) {
+						yield* Effect.logDebug(`Adding subtitles to clip ${params.clipId} in language ${subtitle.language}`);
+						// 1. Adjust subtitle timestamps
+						const adjustedSrtContent = adjustSrtTimestamps(subtitle.fileContent, params.start);
 
-				if (subtitle && subtitle.fileContent) {
-					yield* Effect.logDebug(`Adding subtitles to clip ${params.clipId} in language ${subtitle.language}`);
-					// 1. Adjust subtitle timestamps
-					const adjustedSrtContent = adjustSrtTimestamps(subtitle.fileContent, params.start);
+						// 2. Save the adjusted subtitle content to a temporary file
+						const tempSrtFilePath = yield* assetService
+							.writeSubtitleForClip(params.clipId, adjustedSrtContent)
+							.pipe(
+								Effect.catchAll((e) =>
+									Effect.fail(new AvError({ cause: e, message: `Failed to write subtitle for clip ${params.clipId}` }))
+								)
+							);
 
-					// 2. Save the adjusted subtitle content to a temporary file
-					const tempSrtFilePath = yield* assetService
-						.writeSubtitleForClip(params.clipId, adjustedSrtContent)
-						.pipe(Effect.catchAll((e) => Effect.fail(new AvError({ cause: e }))));
+						// 3. Add the subtitles filter to ffmpeg
+						// The `subtitles` filter expects a file path.
+						// Ensure the path is correct and accessible by ffmpeg.
+						proc.videoFilters(`subtitles='${tempSrtFilePath.replace(/\\/g, '\\\\')}'`); // Escape backslashes for ffmpeg path
+					}
 
-					// 3. Add the subtitles filter to ffmpeg
-					// The `subtitles` filter expects a file path.
-					// Ensure the path is correct and accessible by ffmpeg.
-					proc.videoFilters(`subtitles='${tempSrtFilePath.replace(/\\/g, '\\\\')}'`); // Escape backslashes for ffmpeg path
-				}
+					const ffmpegPromise = new Promise<void>((resolve, reject) => {
+						proc
+							.videoCodec('libx264')
+							.outputOptions([
+								'-pix_fmt yuv420p', // Force 8-bit pixel format (yuv420p) for compatibility
+								'-crf 23',
+								'-preset medium'
+							])
+							.audioCodec('aac')
+							.saveToFile(`${assetService.CLIPS_DIR}/${params.clipId}.mp4`)
+							.on('start', (_commandLine) => {
+								// console.info('Spawned Ffmpeg with command: ' + commandLine);
+							})
+							.on('error', (err) => {
+								// console.error('An error occurred: ' + err.message);
+								reject(err);
+							})
+							.on('end', (err) => {
+								if (!err) {
+									// console.info('Processing finished !');
+									resolve();
+								}
+								reject(err);
+							});
+					});
 
-				const ffmpegPromise = new Promise<void>((resolve, reject) => {
-					proc
-						.videoCodec('libx264')
-						.outputOptions([
-							'-pix_fmt yuv420p', // Force 8-bit pixel format (yuv420p) for compatibility
-							'-crf 23',
-							'-preset medium'
-						])
-						.audioCodec('aac')
-						.saveToFile(`${assetService.CLIPS_DIR}/${params.clipId}.mp4`)
-						.on('start', (commandLine) => {
-							console.info('Spawned Ffmpeg with command: ' + commandLine);
-						})
-						.on('error', (err) => {
-							console.error('An error occurred: ' + err.message);
-							reject(err);
-						})
-						.on('end', (err) => {
-							if (!err) {
-								console.info('Processing finished !');
-								resolve();
-							}
-							reject(err);
-						});
-				});
+					yield* Effect.logDebug(`Starting ffmpeg processing for clip ${params.clipId}`);
+					yield* Effect.tryPromise({
+						try: () => ffmpegPromise,
+						catch: (error) => new AvError({ cause: error, message: `Failed to clip video for clipId ${params.clipId}` })
+					});
+				}),
+				createThumbnailForClip: Effect.fn('AVService.createThumbnailForClip')(function* (
+					clipId,
+					thumbnailPercent = 10
+				) {
+					const proc = yield* Effect.try({
+						try: () => ffmpeg({ source: `${assetService.CLIPS_DIR}/${clipId}.mp4` }),
+						catch: (error) => new AvError({ cause: error, message: `Failed to initialize ffmpeg for clip ${clipId}` })
+					});
+					const targetPath = `${assetService.CLIPS_DIR}/${clipId}.jpg`;
+					// Use ffmpeg to create a thumbnail
+					const ffmpegPromise = new Promise<void>((resolve, reject) => {
+						proc
+							.on('start', (_commandLine) => {
+								// console.info('Spawned Ffmpeg with command: ' + commandLine);
+							})
+							.on('error', (err) => {
+								// console.error('An error occurred: ' + err.message);
+								reject(err);
+							})
+							.on('end', (err) => {
+								if (!err) {
+									// console.info('Processing finished !');
+									resolve();
+								}
+								reject(err);
+							})
+							.screenshots({
+								count: 1,
+								filename: targetPath,
+								timemarks: [`${thumbnailPercent}%`]
+							});
+					});
 
-				yield* Effect.logDebug(`Starting ffmpeg processing for clip ${params.clipId}`);
-				yield* Effect.tryPromise({
-					try: () => ffmpegPromise,
-					catch: (error) => new AvError({ cause: error })
-				});
-			}),
-			createThumbnailForClip: Effect.fn('AVService.createThumbnailForClip')(function* (clipId, thumbnailPercent = 10) {
-				const proc = ffmpeg({ source: `${assetService.CLIPS_DIR}/${clipId}.mp4` });
-				const targetPath = `${assetService.CLIPS_DIR}/${clipId}.jpg`;
-				// Use ffmpeg to create a thumbnail
-				const ffmpegPromise = new Promise<void>((resolve, reject) => {
-					proc
-						.on('start', (commandLine) => {
-							console.info('Spawned Ffmpeg with command: ' + commandLine);
-						})
-						.on('error', (err) => {
-							console.error('An error occurred: ' + err.message);
-							reject(err);
-						})
-						.on('end', (err) => {
-							if (!err) {
-								console.info('Processing finished !');
-								resolve();
-							}
-							reject(err);
-						})
-						.screenshots({
-							count: 1,
-							filename: targetPath,
-							timemarks: [`${thumbnailPercent}%`]
-						});
-				});
-
-				yield* Effect.logDebug(`Starting ffmpeg thumbnail generation for clip ${clipId}`);
-				yield* Effect.tryPromise({
-					try: () => ffmpegPromise,
-					catch: (error) => new AvError({ cause: error })
-				});
-				yield* Effect.logDebug(`Thumbnail generated at ${targetPath} for clip ${clipId}`);
-				return targetPath;
-			})
-		});
-	})
-);
-
-export const NodeAvLayer = Layer.effect(
-	AVService,
-	Effect.gen(function* () {
-		const assetService = yield* AssetService;
-
-		return AVService.of({
-			clipVideo: Effect.fn('AVService.clipVideo')(function* (params) {}),
-			createThumbnailForClip: Effect.fn('AVService.createThumbnailForClip')(function* (clipId, thumbnailPercent = 10) {
-				const targetPath = `${assetService.CLIPS_DIR}/${clipId}.jpg`;
-
-				yield* Effect.logDebug(`(NodeAvLayer) Generated thumbnail at ${targetPath} for clip ${clipId}`);
-				return targetPath;
-			})
-		});
-	})
-);
+					yield* Effect.logDebug(`Starting ffmpeg thumbnail generation for clip ${clipId}`);
+					yield* Effect.tryPromise({
+						try: () => ffmpegPromise,
+						catch: (error) => new AvError({ cause: error, message: `Failed to create thumbnail for clip ${clipId}` })
+					});
+					yield* Effect.logDebug(`Thumbnail generated at ${targetPath} for clip ${clipId}`);
+					return targetPath;
+				})
+			});
+		})
+	);
+}
 
 export class AvError extends Schema.TaggedError<AvError>()('AvError', {
-	cause: Schema.optional(Schema.Defect)
+	cause: Schema.optional(Schema.Defect),
+	message: Schema.String
 }) {}
 
 // Helper function to adjust SRT timestamps

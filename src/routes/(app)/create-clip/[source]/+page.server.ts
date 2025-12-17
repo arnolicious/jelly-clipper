@@ -1,11 +1,12 @@
-import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { Effect, Exit, Layer } from 'effect';
+import { Effect, pipe } from 'effect';
 import { DownloadMediaService } from '$lib/server/services/DownloadMediaService';
-import { InvalidSourceFormatError, ItemInfoService } from '$lib/server/services/ItemInfoService';
-import { AuthenticatedUserLayer } from '$lib/server/services/RuntimeLayers';
-import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/CurrentUser';
+import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/UserSession';
 import { AssetService } from '$lib/server/services/AssetService';
+import { runLoader } from '$lib/server/load-utils';
+import { BadRequest, OkLoader, ServerError } from '$lib/server/responses';
+import { FiberManager } from '$lib/server/services/FiberManagerService';
+import { InvalidSourceFormatError, JellyfinApi } from '$lib/server/services/JellyfinService';
 export type Track = {
 	index: number;
 	language: string;
@@ -13,38 +14,12 @@ export type Track = {
 	subtitleFile: string;
 };
 
-const itemInfoEffect = Effect.fn('itemInfoEffect')(function* (source: string) {
-	const decodedSource = decodeURIComponent(source);
-
-	if (!decodedSource.includes('/')) {
-		return yield* InvalidSourceFormatError.make({ source: decodedSource });
-	}
-	const url = new URL(decodedSource);
-	const sourceId = url.pathname.split('Items/')[1].split('/')[0];
-	const audioStreamIndexParam = url.searchParams.get('audioStreamIndex');
-	const subtitleStreamIndexParam = url.searchParams.get('subtitleStreamIndex');
-
-	const assetService = yield* AssetService;
-	yield* assetService.ensureAssetDirectoriesExist();
-
-	// const downloadService = yield* DownloadMediaService;
-	const itemInfoService = yield* ItemInfoService;
-
-	const itemInfo = yield* itemInfoService.getClipInfo(sourceId);
-
-	return {
-		itemInfo,
-		audioStreamIndex: audioStreamIndexParam ? Number(audioStreamIndexParam) : null,
-		subtitleStreamIndex:
-			subtitleStreamIndexParam && subtitleStreamIndexParam !== 'none' ? Number(subtitleStreamIndexParam) : null
-	};
-});
-
 const downloadEffect = Effect.fn('downloadEffect')(function* (
 	source: string,
 	audioStreamIndex: number | null,
 	subtitleStreamIndex: number | null
 ) {
+	yield* Effect.logInfo(`Starting downloadEffect for item ${source}`);
 	const downloadService = yield* DownloadMediaService;
 
 	const result = yield* downloadService.downloadMedia(
@@ -56,49 +31,66 @@ const downloadEffect = Effect.fn('downloadEffect')(function* (
 	return result;
 });
 
-export const load: PageServerLoad = async (event) => {
-	const authedLayer = Layer.provideMerge(AuthenticatedUserLayer, makeAuthenticatedRuntimeLayer(event.locals));
-	const itemInfoRunnable = Effect.provide(
-		itemInfoEffect(event.params.source).pipe(Effect.withLogSpan('create-clip.itemInfoEffect')),
-		authedLayer
-	);
+export const load: PageServerLoad = async (event) =>
+	runLoader(
+		Effect.gen(function* () {
+			const fiberManager = yield* FiberManager;
 
-	const itemInfoResult = await Effect.runPromiseExit(itemInfoRunnable);
+			const decodedSource = decodeURIComponent(event.params.source);
 
-	const itemInfo = Exit.match(itemInfoResult, {
-		onSuccess: (data) => data,
-		onFailure: (cause) => {
-			if (cause._tag === 'Fail') {
-				if (cause.error._tag === 'InvalidSourceFormatError') {
-					throw error(400, cause.error.message);
+			if (!decodedSource.includes('/')) {
+				return yield* InvalidSourceFormatError.make({ source: decodedSource });
+			}
+			const url = new URL(decodedSource);
+			const sourceId = url.pathname.split('Items/')[1].split('/')[0];
+			const audioStreamIndex = Number(url.searchParams.get('audioStreamIndex'));
+			const subtitleStreamIndex = Number(url.searchParams.get('subtitleStreamIndex'));
+
+			const fiber = yield* fiberManager
+				.getDownloadFiber(sourceId)
+				.pipe(Effect.catchTag('FiberNotFound', () => Effect.succeed(null)));
+			if (fiber) {
+				// If a fiber is found, it means a download is already in progress
+				yield* Effect.fail(new BadRequest({ message: 'A download is already in progress for this item.' }));
+			}
+
+			const assetService = yield* AssetService;
+			yield* assetService.ensureAssetDirectoriesExist();
+
+			const api = yield* JellyfinApi;
+
+			const itemInfo = yield* api.getClipInfo(sourceId);
+
+			// Don't yield* here, we want to run the download and pass the promise back to the client
+			const downloadProgram = pipe(
+				downloadEffect(itemInfo.info.Id, audioStreamIndex, subtitleStreamIndex),
+				Effect.withLogSpan('create-clip.downloadEffect'),
+				Effect.provide(makeAuthenticatedRuntimeLayer(event.locals))
+			);
+
+			const downloadFiber = yield* Effect.forkDaemon(downloadProgram);
+			yield* fiberManager.registerDownloadFiber(itemInfo.info.Id, downloadFiber);
+
+			const downloadResult = Effect.runPromiseExit(downloadFiber).then((exit) => {
+				if (exit._tag === 'Success') {
+					return exit.value;
+				} else {
+					if (exit.cause._tag === 'Fail') {
+						return { errorMessage: `${exit.cause.error._tag}: ${exit.cause.error.message}` };
+					}
+					return { errorMessage: `An unexpected error occurred: ${exit.cause.toString()}` };
 				}
-				throw error(500, cause.error.message);
-			}
-			throw error(500, 'An unexpected error occurred: ' + cause.toString());
-		}
-	});
+			});
 
-	const downloadProgram = downloadEffect(
-		itemInfo.itemInfo.info.Id,
-		itemInfo.audioStreamIndex,
-		itemInfo.subtitleStreamIndex
-	).pipe(Effect.withLogSpan('create-clip.downloadEffect'));
-
-	const downloadRunnable = Effect.provide(downloadProgram, authedLayer);
-
-	const downloadResult = Effect.runPromiseExit(downloadRunnable).then((exit) => {
-		if (exit._tag === 'Success') {
-			return exit.value;
-		} else {
-			if (exit.cause._tag === 'Fail') {
-				return { errorMessage: `${exit.cause.error._tag}: ${exit.cause.error.message}` };
-			}
-			return { errorMessage: `An unexpected error occurred: ${exit.cause.toString()}` };
-		}
-	});
-
-	return {
-		itemInfo: itemInfo.itemInfo.info,
-		download: downloadResult
-	};
-};
+			return new OkLoader({ data: { itemInfo: itemInfo.info, download: downloadResult } });
+		}).pipe(
+			Effect.provide(makeAuthenticatedRuntimeLayer(event.locals)),
+			Effect.catchTag('BadArgument', (error) => Effect.fail(new BadRequest({ message: error.message }))),
+			Effect.catchTag('InvalidSourceFormatError', (error) => Effect.fail(new BadRequest({ message: error.message }))),
+			Effect.catchTag('SystemError', (error) => Effect.fail(new ServerError({ message: error.message }))),
+			Effect.catchTag('DownloadCurrentlyInProgressError', (error) =>
+				Effect.fail(new ServerError({ message: error.message }))
+			)
+		),
+		{ span: `/create-clip/[source]`, spanOptions: { attributes: { source: event.params.source } } }
+	);

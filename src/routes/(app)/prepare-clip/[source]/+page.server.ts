@@ -1,44 +1,38 @@
-import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { Effect, Exit, Layer } from 'effect';
-import { InvalidSourceFormatError, ItemInfoService } from '$lib/server/services/ItemInfoService';
-import { AuthenticatedUserLayer, serverRuntime } from '$lib/server/services/RuntimeLayers';
-import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/CurrentUser';
+import { Effect } from 'effect';
+import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/UserSession';
+import { BadRequest, OkLoader } from '$lib/server/responses';
+import { runLoader } from '$lib/server/load-utils';
+import { InvalidSourceFormatError, JellyfinApi } from '$lib/server/services/JellyfinService';
 
-const prepareClip = Effect.fn('prepareClip')(function* (source: string) {
-	const prepareClip = yield* ItemInfoService;
+export const load: PageServerLoad = (event) =>
+	runLoader(
+		Effect.gen(function* () {
+			const api = yield* JellyfinApi;
 
-	const decodedSource = decodeURIComponent(source);
+			const decodedSource = decodeURIComponent(event.params.source);
 
-	if (!decodedSource.includes('/')) {
-		return yield* InvalidSourceFormatError.make({ source: decodedSource });
-	}
-	const url = new URL(decodedSource);
-	const pathname = url.pathname;
-	const sourceId = pathname.split('Items/')[1].split('/')[0];
-
-	const clipInfo = yield* prepareClip.getClipInfo(sourceId);
-	return clipInfo;
-});
-
-export const load: PageServerLoad = async ({ locals, params }) => {
-	const authedLayer = Layer.provideMerge(AuthenticatedUserLayer, makeAuthenticatedRuntimeLayer(locals));
-	const authedRunnable = Effect.provide(
-		prepareClip(params.source).pipe(Effect.withLogSpan('prepare-clip.prepareClip')),
-		authedLayer
-	);
-	const result = await serverRuntime.runPromiseExit(authedRunnable);
-
-	return Exit.match(result, {
-		onSuccess: (clipInfo) => clipInfo,
-		onFailure: (cause) => {
-			if (cause._tag === 'Fail') {
-				if (cause.error._tag === 'InvalidSourceFormatError') {
-					return error(400, `Invalid source format: ${cause.error.source}`);
-				}
-				return error(500, cause.error.message);
+			if (!decodedSource.includes('/')) {
+				return yield* InvalidSourceFormatError.make({ source: decodedSource });
 			}
-			return error(500, 'An unexpected error occurred: ' + cause.toString());
-		}
-	});
-};
+			const url = new URL(decodedSource);
+			const pathname = url.pathname;
+			const sourceId = pathname.split('Items/')[1].split('/')[0];
+
+			const clipInfo = yield* api.getClipInfo(sourceId);
+
+			// if (clipInfo.audioStreams.length === 1) {
+			// 	return new Redirect({
+			// 		code: 307,
+			// 		to: `/create-clip/${encodeURIComponent(decodedSource)}?audioStreamIndex=0`,
+			// 		message: 'Only one audio stream, redirecting to create clip.'
+			// 	});
+			// }
+
+			return new OkLoader({ data: clipInfo });
+		}).pipe(
+			Effect.provide(makeAuthenticatedRuntimeLayer(event.locals)),
+			Effect.catchTag('InvalidSourceFormatError', (error) => Effect.fail(new BadRequest({ message: error.message })))
+		),
+		{ span: `/prepare-clip/[source]`, spanOptions: { attributes: { source: event.params.source } } }
+	);

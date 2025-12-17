@@ -16,8 +16,8 @@ export class DatabaseError extends Schema.TaggedError<DatabaseError>()('Database
 	cause: Schema.Defect
 }) {}
 
-export class DB extends Context.Tag('DB')<
-	DB,
+export class DatabaseService extends Context.Tag('DB')<
+	DatabaseService,
 	{
 		readonly db: Effect.Effect.Success<typeof getDb>;
 		readonly schema: typeof schema;
@@ -26,8 +26,8 @@ export class DB extends Context.Tag('DB')<
 		) => Effect.Effect<T, DatabaseError>;
 	}
 >() {
-	static readonly layer = Layer.effect(
-		DB,
+	static readonly Default = Layer.effect(
+		DatabaseService,
 		Effect.gen(function* () {
 			yield* Effect.logDebug('Connecting to database...');
 			const db = yield* getDb;

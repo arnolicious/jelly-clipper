@@ -11,6 +11,7 @@ RUN npm install -g pnpm@latest-10
 
 WORKDIR /app
 COPY package.json package.json
+COPY pnpm-lock.yaml pnpm-lock.yaml
 RUN pnpm install --frozen-lockfile
 
 # Create db file
@@ -26,4 +27,4 @@ ENV NODE_ENV=production
 
 EXPOSE 3000
 
-CMD ["node", "express-node-server.js"]
+CMD ["node", "express-node-server.ts"]

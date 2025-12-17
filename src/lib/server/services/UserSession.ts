@@ -1,22 +1,21 @@
 import { Context, Effect, Layer, Schema } from 'effect';
 import type { Cookies } from '@sveltejs/kit';
-import { DB } from './DatabaseService';
+import { DatabaseService } from './DatabaseService';
 import { and, eq, gte } from 'drizzle-orm';
 import { sessions, users } from '../db/schema';
 import { SESSION_EXPIRY } from '../db/sessions';
+import { AuthenticatedUserLayer } from './RuntimeLayers';
 
-export class CurrentUser extends Context.Tag('CurrentUser')<
-	CurrentUser,
+export class UserSession extends Context.Tag('UserSession')<
+	UserSession,
 	{
 		getCurrentUser: () => Effect.Effect<User, NoCurrentUserError>;
 	}
 >() {}
 
-export const makeAuthenticatedRuntimeLayer = (
-	locals: App.Locals
-): Layer.Layer<CurrentUser, NoCurrentUserError, never> => {
-	return Layer.sync(CurrentUser, () => {
-		const getCurrentUser = Effect.fn('CurrentUser.getCurrentUser')(function* () {
+export const makeAuthenticatedRuntimeLayer = (locals: App.Locals) => {
+	const currentUserLayer = Layer.sync(UserSession, () => {
+		const getCurrentUser = Effect.fn('UserSession.getCurrentUser')(function* () {
 			const user = locals.user;
 			if (!user) {
 				return yield* NoCurrentUserError.make();
@@ -29,19 +28,19 @@ export const makeAuthenticatedRuntimeLayer = (
 			});
 		});
 
-		return CurrentUser.of({ getCurrentUser });
+		return UserSession.of({ getCurrentUser });
 	});
+
+	return AuthenticatedUserLayer.pipe(Layer.provide(currentUserLayer));
 };
 
-export const makeAuthenticatedRuntimeLayerFromCookies = (
-	cookies: Cookies
-): Layer.Layer<CurrentUser, NoCurrentUserError, DB> => {
-	return Layer.effect(
-		CurrentUser,
+export const makeAuthenticatedRuntimeLayerFromCookies = (cookies: Cookies) => {
+	const currentUserLayer = Layer.effect(
+		UserSession,
 		Effect.gen(function* () {
-			const db = yield* DB;
+			const db = yield* DatabaseService;
 
-			const getCurrentUser = Effect.fn('CurrentUser.getCurrentUserFromCookies')(function* () {
+			const getCurrentUser = Effect.fn('UserSession.getCurrentUserFromCookies')(function* () {
 				const sessionId = cookies.get('sessionid');
 				yield* Effect.logDebug(`Looking up current user from session ID in cookies: ${sessionId}`);
 				if (!sessionId) {
@@ -89,9 +88,11 @@ export const makeAuthenticatedRuntimeLayerFromCookies = (
 				});
 			});
 
-			return CurrentUser.of({ getCurrentUser });
+			return UserSession.of({ getCurrentUser });
 		})
 	);
+
+	return currentUserLayer;
 };
 
 export class User extends Schema.Class<User>('User')({

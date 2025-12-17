@@ -1,36 +1,44 @@
-import { Layer, Logger, ManagedRuntime } from 'effect';
-import { ItemInfoService } from './ItemInfoService';
-import { AnonymousJellyfinApiLayer, AuthedJellyfinApiLayer } from './JellyfinService';
-import { JellyClipperConfigWithDbLayer } from './ConfigService';
+import { Layer, Logger, LogLevel, ManagedRuntime } from 'effect';
+import { AnonymousJellyfinApi, JellyfinApi } from './JellyfinService';
+import { JellyClipperConfig } from './ConfigService';
 import { ClipService } from './ClipService';
-import { AssetNodeLayer } from './AssetService';
-import { DownloadMediaServiceLive } from './DownloadMediaService';
-import type { CurrentUser } from './CurrentUser';
+import { DownloadMediaService } from './DownloadMediaService';
 import { CreateClipService } from './CreateClipService';
-import { FfmpegLayer } from './AVService';
+import { AVService } from './AVService';
+import { AssetService } from './AssetService';
+import { FiberManager } from './FiberManagerService';
+import { DatabaseService } from './DatabaseService';
+import { FetchHttpClient } from '@effect/platform';
+
+// User-Agnostic Layers
+const AnonymousJellyfinApiLayer = AnonymousJellyfinApi.Default;
+const AssetServiceLayer = AssetService.NodeLayer;
+const AvServiceLayer = AVService.FfmpegLayer.pipe(Layer.provide(AssetServiceLayer));
+const DatabaseServiceLayer = DatabaseService.Default;
+const ConfigLayer = JellyClipperConfig.Default.pipe(Layer.provide(DatabaseServiceLayer));
+const LoggingLayer = Layer.mergeAll(Logger.pretty, Logger.minimumLogLevel(LogLevel.Debug));
+const FiberManagerLayer = FiberManager.Default;
 
 export const UserAgnosticLayer = Layer.mergeAll(
-	Layer.provideMerge(FfmpegLayer, AssetNodeLayer),
-	JellyClipperConfigWithDbLayer,
+	FiberManagerLayer,
+	DatabaseServiceLayer,
+	AssetServiceLayer,
+	AvServiceLayer,
 	AnonymousJellyfinApiLayer,
-	Logger.pretty
-);
+	ConfigLayer
+).pipe(Layer.provide(LoggingLayer));
 
-export const serverRuntime = ManagedRuntime.make(UserAgnosticLayer);
+// Authenticated User Layers
+const AuthedJellyfinApiLayer = JellyfinApi.Default;
+const ClipServiceLayer = ClipService.Default;
+const CreateClipServiceLayer = CreateClipService.Default;
+const DownloadMediaServiceLayer = DownloadMediaService.Default.pipe(Layer.provide(FetchHttpClient.layer));
 
 export const AuthenticatedUserLayer = Layer.mergeAll(
-	DownloadMediaServiceLive,
-	CreateClipService.layer,
-	ClipService.layer
-).pipe(
-	Layer.provideMerge(ItemInfoService.layer),
-	Layer.provideMerge(AuthedJellyfinApiLayer),
-	Layer.provideMerge(UserAgnosticLayer)
-);
+	AuthedJellyfinApiLayer,
+	DownloadMediaServiceLayer,
+	CreateClipServiceLayer,
+	ClipServiceLayer
+).pipe(Layer.provide(AuthedJellyfinApiLayer));
 
-// Assert that the AuthenticatedUserLayer only requires the CurrentUser Layer
-type AuthenticatedLayerRequirements = Layer.Layer.Context<typeof AuthenticatedUserLayer>;
-
-type AssertCurrentUserLayer = AuthenticatedLayerRequirements extends CurrentUser ? true : false;
-
-const _assertCurrentUserLayer: AssertCurrentUserLayer = true;
+export const serverRuntime = ManagedRuntime.make(UserAgnosticLayer);

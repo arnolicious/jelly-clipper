@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { CreateClipBodySchema, CreateClipService } from '$lib/server/services/CreateClipService';
 import { Effect, Exit, Layer, Logger, LogLevel, Schema } from 'effect';
 import { AuthenticatedUserLayer, serverRuntime } from '$lib/server/services/RuntimeLayers';
-import { makeAuthenticatedRuntimeLayerFromCookies } from '$lib/server/services/CurrentUser';
+import { makeAuthenticatedRuntimeLayerFromCookies } from '$lib/server/services/UserSession';
 
 const createClipEffect = Effect.fn('createClipEffect')(function* (body: unknown) {
 	const createClipService = yield* CreateClipService;
