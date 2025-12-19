@@ -4,6 +4,7 @@ import { PlatformError } from '@effect/platform/Error';
 import { NodeContext } from '@effect/platform-node';
 import { BunContext } from '@effect/platform-bun';
 import type { SrtStringContent } from './CreateClipService';
+import { BigIntFileSize, FileInfoSchema, type FileInfo } from '$lib/shared/FileSizes';
 
 export const ASSET_ROOT_DIR = 'assets';
 
@@ -115,15 +116,3 @@ export class WriteStreamFailed extends Schema.TaggedError<WriteStreamFailed>()('
 		super();
 	}
 }
-
-export const BigIntFileSize = Schema.BigInt.pipe(Schema.brand('SizeInBytes'));
-
-export const IntFileSize = Schema.Number.pipe(Schema.brand('SizeInBytes'));
-
-export const FileInfoSchema = Schema.Struct({
-	name: Schema.String,
-	extension: Schema.String,
-	size: BigIntFileSize
-});
-
-export type FileInfo = typeof FileInfoSchema.Type;

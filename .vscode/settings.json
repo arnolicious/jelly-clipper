@@ -6,7 +6,7 @@
 	"html.customData": ["./node_modules/vidstack/vscode.html-data.json"],
 	"eslint.validate": ["javascript", "typescript", "svelte"],
 	"eslint.probe": ["javascript", "typescript", "svelte"],
-	"typescript.tsdk": "./node_modules/typescript/lib",
 	"typescript.enablePromptUseWorkspaceTsdk": true,
+	"typescript.tsdk": "./node_modules/@typescript/native-preview",
 	"typescript.experimental.useTsgo": true
 }

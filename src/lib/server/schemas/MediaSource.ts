@@ -1,7 +1,7 @@
 import { Schema } from 'effect';
 import { MediaStreamSchema } from './MediaStream';
 import type { MediaSourceInfo as OriginalMediaSourceInfo } from '@jellyfin/sdk/lib/generated-client/models';
-import { IntFileSize } from '../services/AssetService';
+import { IntFileSize } from '$lib/shared/FileSizes';
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type Reference = OriginalMediaSourceInfo;

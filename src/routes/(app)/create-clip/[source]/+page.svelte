@@ -5,11 +5,11 @@
 	import JugglingCubeSpinner from '$lib/components/ui/spinner/juggling-cube-spinner.svelte';
 	import { source } from 'sveltekit-sse';
 	import Progress from '$lib/components/ui/progress/progress.svelte';
-	import type { Readable } from 'svelte/store';
-	import type { DownloadProgressDataType } from '$lib/progress-event';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
+	import { type DownloadProgressEvent } from '$lib/shared/DownloadProgressEvent';
+	import type { Readable } from 'svelte/store';
 
 	type Props = {
 		data: PageData;
@@ -17,26 +17,23 @@
 
 	let { data }: Props = $props();
 
-	const downloadProgress: Readable<DownloadProgressDataType | null | undefined> = source('/api/download-progress')
+	// svelte-ignore state_referenced_locally
+	const progressData: Readable<DownloadProgressEvent | null | undefined> = source(
+		`/api/download-progress/${data.itemInfo.Id}`
+	)
 		.select('data')
 		.json(function or() {
 			return null; // This will be the new value of the store
 		});
 
 	let progressString = $derived.by(() => {
-		return formatProgress($downloadProgress);
+		return formatProgress($progressData);
 	});
 
-	function formatProgress(progress: DownloadProgressDataType | null | undefined) {
-		if (progress && 'errorMessage' in progress) {
-			return `Error: ${progress.errorMessage}`;
-		}
+	function formatProgress(progress: DownloadProgressEvent | null | undefined) {
+		if (!progress) return '0% (0/0 MB)';
 
-		if (!progress || !('totalSizeBytes' in progress)) return '0% (0/0 MB)';
-
-		if (!('percentage' in progress)) return `0% (0/${progress.totalSizeBytes / 1000000} MB)`;
-
-		return `${progress.percentage}% (${(progress.downloadedBytes / 1000000).toFixed(2)}/${(
+		return `${progress.progressPercentage}% (${(progress.downloadedBytes / 1000000).toFixed(2)}/${(
 			progress.totalSizeBytes / 1000000
 		).toFixed(2)} MB)`;
 	}
@@ -53,11 +50,11 @@
 </script>
 
 {#await data.download}
-	{#if $downloadProgress && 'errorMessage' in $downloadProgress}
+	{#if $progressData && 'errorMessage' in $progressData}
 		<div class="flex flex-col gap-8 justify-center items-center">
 			<span class="text-slate-400 italic">
 				Failed to download media from jellyfin, please try again later.
-				{$downloadProgress.errorMessage}
+				{$progressData.errorMessage}
 			</span>
 		</div>
 	{:else}
@@ -66,7 +63,7 @@
 			<span class="text-slate-400 italic">
 				Downloading: {getDisplayTitleFromItem(data.itemInfo)}, please be patient...
 			</span>
-			<Progress value={$downloadProgress && 'percentage' in $downloadProgress ? $downloadProgress.percentage : null} />
+			<Progress value={$progressData?.progressPercentage} />
 			<span class="text-slate-400 italic">
 				{progressString}
 			</span>

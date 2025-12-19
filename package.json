@@ -23,7 +23,7 @@
 		"@sveltejs/adapter-node": "^5.4.0",
 		"@sveltejs/kit": "^2.49.2",
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
-		"@typescript/native-preview": "7.0.0-dev.20251214.1",
+		"@typescript/native-preview": "7.0.0-dev.20251217.1",
 		"autoprefixer": "^10.4.22",
 		"bits-ui": "^1.8.0",
 		"clsx": "^2.1.1",

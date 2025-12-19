@@ -7,7 +7,7 @@ import {
 	NoMediaSourceError,
 	TrackSchema
 } from './JellyfinService';
-import { AssetService, FileInfoSchema, WriteStreamFailed } from './AssetService';
+import { AssetService, WriteStreamFailed } from './AssetService';
 import { BadArgument, SystemError } from '@effect/platform/Error';
 import { HttpClient } from '@effect/platform';
 import type { DatabaseError } from './DatabaseService';
@@ -15,9 +15,11 @@ import type { NoCurrentUserError } from './UserSession';
 import type { JellyClipperNotConfiguredError } from './ConfigService';
 import type { ParseError } from 'effect/ParseResult';
 import type { RequestError, ResponseError } from '@effect/platform/HttpClientError';
-import { DOWNLOAD_EVENTS, downloadProgressEventEmitter, type DownloadProgressTypes } from '$lib/progress-event';
+import { DownloadManager } from './DownloadManagerService';
+import { DownloadProgressEvent } from '$lib/shared/DownloadProgressEvent';
+import { FileInfoSchema, IntFileSize } from '$lib/shared/FileSizes';
 
-const DOWNLOAD_EVENT_EMISSION_RATE_MS = 2000;
+const DOWNLOAD_EVENT_EMISSION_RATE_MS = 500;
 
 export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 	DownloadMediaService,
@@ -50,6 +52,7 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 			const jellyfinApi = yield* JellyfinApi;
 			const assetService = yield* AssetService;
 			const http = yield* HttpClient.HttpClient;
+			const downloadManager = yield* DownloadManager;
 
 			const downloadMedia = Effect.fn('DownloadMediaService.downloadMedia')(function* (
 				itemId: string,
@@ -92,9 +95,14 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 					subtitleStreamIndex
 				});
 
-				downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.START, {
-					totalSizeBytes: mediaSource.Size
-				} satisfies DownloadProgressTypes['START']);
+				yield* downloadManager.publishDownloadEvent(
+					DownloadProgressEvent.make({
+						itemId,
+						downloadedBytes: IntFileSize.make(0),
+						totalSizeBytes: IntFileSize.make(mediaSource.Size),
+						progressPercentage: 0
+					})
+				);
 
 				yield* Effect.logDebug(`Obtained download URL for item ${itemId}`);
 
@@ -114,11 +122,14 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 						// Emit progress update events at most every DOWNLOAD_EVENT_EMISSION_RATE milliseconds
 						if (DateTime.distance(lastEmissionTime, now) >= DOWNLOAD_EVENT_EMISSION_RATE_MS) {
 							yield* Effect.logDebug(`Downloaded chunk of size ${chunk.byteLength} for item ${itemId}`);
-							downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.PROGRESS_UPDATE, {
-								percentage: Math.round(100 * (downloadedSize / mediaSource.Size) * 100) / 100,
-								totalSizeBytes: mediaSource.Size,
-								downloadedBytes: downloadedSize
-							} satisfies DownloadProgressTypes['PROGRESS_UPDATE']);
+							yield* downloadManager.publishDownloadEvent(
+								DownloadProgressEvent.make({
+									itemId,
+									downloadedBytes: IntFileSize.make(downloadedSize),
+									totalSizeBytes: IntFileSize.make(mediaSource.Size),
+									progressPercentage: Math.round(100 * (downloadedSize / mediaSource.Size) * 100) / 100
+								})
+							);
 							lastEmissionTime = now;
 						}
 					});
@@ -131,7 +142,14 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 
 				const fileInfo = yield* assetService.writeFileStreamForItem(itemId, handledStream);
 
-				downloadProgressEventEmitter.emit(DOWNLOAD_EVENTS.END, {} satisfies DownloadProgressTypes['END']);
+				yield* downloadManager.publishDownloadEvent(
+					DownloadProgressEvent.make({
+						itemId,
+						downloadedBytes: IntFileSize.make(mediaSource.Size),
+						totalSizeBytes: IntFileSize.make(mediaSource.Size),
+						progressPercentage: 100
+					})
+				);
 
 				// Eventually return downloaded file info & subtitles
 				yield* Effect.logDebug(`Completed download for item ${itemId}`);
@@ -146,11 +164,15 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 	);
 }
 
-const DownloadResult = Schema.Struct({
+const _DownloadResult = Schema.Struct({
 	fileInfo: FileInfoSchema,
 	subtitleTracks: Schema.Array(TrackSchema)
 });
 
-type DownloadResult = typeof DownloadResult.Type;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface DownloadResult extends Schema.Schema.Type<typeof _DownloadResult> {}
+
+// @ts-expect-error - Error with the Size Brand
+export const DownloadResultSchema: Schema.Schema<DownloadResult> = _DownloadResult;
 
 class DownloadFailedError extends Schema.TaggedError<DownloadFailedError>()('DownloadFailedError', {}) {}

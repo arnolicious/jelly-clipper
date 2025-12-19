@@ -6,7 +6,7 @@ import { DownloadMediaService } from './DownloadMediaService';
 import { CreateClipService } from './CreateClipService';
 import { AVService } from './AVService';
 import { AssetService } from './AssetService';
-import { FiberManager } from './FiberManagerService';
+import { DownloadManager } from './DownloadManagerService';
 import { DatabaseService } from './DatabaseService';
 import { FetchHttpClient } from '@effect/platform';
 
@@ -17,10 +17,10 @@ const AvServiceLayer = AVService.FfmpegLayer.pipe(Layer.provide(AssetServiceLaye
 const DatabaseServiceLayer = DatabaseService.Default;
 const ConfigLayer = JellyClipperConfig.Default.pipe(Layer.provide(DatabaseServiceLayer));
 const LoggingLayer = Layer.mergeAll(Logger.pretty, Logger.minimumLogLevel(LogLevel.Debug));
-const FiberManagerLayer = FiberManager.Default;
+const DownloadManagerLayer = DownloadManager.Default;
 
 export const UserAgnosticLayer = Layer.mergeAll(
-	FiberManagerLayer,
+	DownloadManagerLayer,
 	DatabaseServiceLayer,
 	AssetServiceLayer,
 	AvServiceLayer,

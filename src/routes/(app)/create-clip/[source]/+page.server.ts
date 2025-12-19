@@ -5,7 +5,7 @@ import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/UserSession'
 import { AssetService } from '$lib/server/services/AssetService';
 import { runLoader } from '$lib/server/load-utils';
 import { BadRequest, OkLoader, ServerError } from '$lib/server/responses';
-import { FiberManager } from '$lib/server/services/FiberManagerService';
+import { DownloadManager } from '$lib/server/services/DownloadManagerService';
 import { InvalidSourceFormatError, JellyfinApi } from '$lib/server/services/JellyfinService';
 export type Track = {
 	index: number;
@@ -34,7 +34,7 @@ const downloadEffect = Effect.fn('downloadEffect')(function* (
 export const load: PageServerLoad = async (event) =>
 	runLoader(
 		Effect.gen(function* () {
-			const fiberManager = yield* FiberManager;
+			const fiberManager = yield* DownloadManager;
 
 			const decodedSource = decodeURIComponent(event.params.source);
 
@@ -45,14 +45,6 @@ export const load: PageServerLoad = async (event) =>
 			const sourceId = url.pathname.split('Items/')[1].split('/')[0];
 			const audioStreamIndex = Number(url.searchParams.get('audioStreamIndex'));
 			const subtitleStreamIndex = Number(url.searchParams.get('subtitleStreamIndex'));
-
-			const fiber = yield* fiberManager
-				.getDownloadFiber(sourceId)
-				.pipe(Effect.catchTag('FiberNotFound', () => Effect.succeed(null)));
-			if (fiber) {
-				// If a fiber is found, it means a download is already in progress
-				yield* Effect.fail(new BadRequest({ message: 'A download is already in progress for this item.' }));
-			}
 
 			const assetService = yield* AssetService;
 			yield* assetService.ensureAssetDirectoriesExist();
@@ -68,9 +60,9 @@ export const load: PageServerLoad = async (event) =>
 				Effect.provide(makeAuthenticatedRuntimeLayer(event.locals))
 			);
 
-			const downloadFiber = yield* Effect.forkDaemon(downloadProgram);
-			yield* fiberManager.registerDownloadFiber(itemInfo.info.Id, downloadFiber);
-
+			yield* Effect.logInfo(`Forking download fiber for item ${itemInfo.info.Id}`);
+			const downloadFiber = yield* fiberManager.startDownloadFiber(itemInfo.info.Id, downloadProgram);
+			yield* Effect.logInfo(`Returning download promise for item ${itemInfo.info.Id}`, downloadFiber.id());
 			const downloadResult = Effect.runPromiseExit(downloadFiber).then((exit) => {
 				if (exit._tag === 'Success') {
 					return exit.value;

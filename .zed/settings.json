@@ -1,0 +1,18 @@
+// Folder-specific settings
+//
+// For a full list of overridable settings, and general information on folder-specific settings,
+// see the documentation: https://zed.dev/docs/configuring-zed#settings-files
+{
+	"languages": {
+		"TypeScript": {
+			"language_servers": ["tsgo"]
+		}
+	},
+	"lsp": {
+		"tsgo": {
+			"settings": {
+				"package_version": "7.0.0-dev.20251217.1"
+			}
+		}
+	}
+}
