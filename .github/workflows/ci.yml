@@ -22,8 +22,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "25"
-          cache: "pnpm"
+          node-version: '25'
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -46,8 +46,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "25"
-          cache: "pnpm"
+          node-version: '25'
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -70,14 +70,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "25"
-          cache: "pnpm"
+          node-version: '25'
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Sveltekit sync
-        run: pnpm svelte-kit sync
 
       - name: Run type check
         run: pnpm run check
@@ -97,11 +94,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "25"
-          cache: "pnpm"
+          node-version: '25'
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Sveltekit sync
+        run: pnpm svelte-kit sync
       - name: Run tests
         run: pnpm run test:run
