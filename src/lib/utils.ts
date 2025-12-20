@@ -15,16 +15,6 @@ export function getDisplayTitleFromItem(item: BaseItemDto | OriginalBaseItemDto)
 	return item.Name;
 }
 
-export function getItemSize(item: BaseItemDto | OriginalBaseItemDto) {
-	if (item.MediaSources?.length) {
-		const size = item.MediaSources[0].Size;
-		if (!size) return null;
-		return `${(size / 1000000).toFixed(2)} MB`;
-	}
-
-	return null;
-}
-
 /**
  * @ref https://emby.media/community/index.php?/topic/63357-runtimeticks-microseconds-milliseconds-or-nanoseconds/
  * @param jellyfinTicks
@@ -47,16 +37,3 @@ export function formatTimestamp(seconds: number): string {
 }
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-type Callback<TArgs> = (args: TArgs) => void;
-
-export const promisify =
-	<TArgs, TCallbackArgs>(
-		fn: (args: TArgs, cb: Callback<TCallbackArgs>) => void
-	): ((args: TArgs) => Promise<TCallbackArgs>) =>
-	(args: TArgs) =>
-		new Promise((resolve) => {
-			fn(args, (callbackArgs) => {
-				resolve(callbackArgs);
-			});
-		});
