@@ -8,6 +8,7 @@ import { BadRequest, OkLoader, ServerError } from '$lib/server/responses';
 import { DownloadManager } from '$lib/server/services/DownloadManagerService';
 import { InvalidSourceFormatError, JellyfinApi } from '$lib/server/services/JellyfinService';
 import { JellyfinItemIdSchema } from '$lib/shared/JellyfinId';
+import { LibraryService } from '$lib/server/services/LibraryService';
 
 export type Track = {
 	index: number;
@@ -29,6 +30,9 @@ export const load: PageServerLoad = async (event) =>
 	runLoader(
 		Effect.gen(function* () {
 			const fiberManager = yield* DownloadManager;
+			const api = yield* JellyfinApi;
+			const assetService = yield* AssetService;
+			const libraryService = yield* LibraryService;
 
 			const decodedSource = decodeURIComponent(event.params.source);
 
@@ -48,12 +52,14 @@ export const load: PageServerLoad = async (event) =>
 				audioStreamIndex = Number(url.searchParams.get('audioStreamIndex'));
 			}
 
-			const assetService = yield* AssetService;
+			// Ensure asset directories exist
 			yield* assetService.ensureAssetDirectoriesExist();
 
-			const api = yield* JellyfinApi;
-
 			const itemInfo = yield* api.getClipInfo(itemId);
+
+			// Check if we can find the original file on disk
+			yield* libraryService.checkForLocalMediaFile(itemInfo.info).pipe(Effect.catchAll(() => Effect.succeed(null)));
+
 			// Don't yield* here, we want to run the download and pass the promise back to the client
 			const downloadProgram = pipe(
 				downloadEffect(itemInfo.info.Id, audioStreamIndex),

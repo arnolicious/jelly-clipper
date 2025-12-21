@@ -52,6 +52,10 @@ services:
       # This will store all the clips permanently and the original files temporarily,
       # so it might get a lil big
       - <MY_VIDEOS_PATH>:/app/assets/videos
+      # If jelly-clipper runs on the same server as jellyfin
+      # you can mount the jellyfin media folder into jelly-clipper in the same exact same way it is mounted in jellyfin
+      # This allows jelly-clipper to directly access the media, instead of needing to download it
+      # - /my-media:/media <-- The mounted path must match exactly with the path in jellyfin
     restart: unless-stopped
     environment:
       # Timezone to have the cleanup cron job working as expected
