@@ -2,6 +2,7 @@ import { Context, Effect, Layer, Schema } from 'effect';
 import { type BaseItemDto } from '../../shared/BaseItemDto';
 import { FileSystem } from '@effect/platform';
 import { AssetService } from './AssetService';
+import { AVService } from './AVService';
 
 export class LibraryService extends Context.Tag('LibraryService')<
 	LibraryService,
@@ -14,6 +15,7 @@ export class LibraryService extends Context.Tag('LibraryService')<
 		Effect.gen(function* () {
 			const fs = yield* FileSystem.FileSystem;
 			const assetService = yield* AssetService;
+			const av = yield* AVService;
 
 			return LibraryService.of({
 				checkForLocalMediaFile: Effect.fn('LibraryService.checkForLocalMediaFile')(function* (item: BaseItemDto) {
@@ -39,13 +41,15 @@ export class LibraryService extends Context.Tag('LibraryService')<
 						return yield* new ItemFileNotFound({ message: `Local media file not found at path: ${jellyfinItemPath}` });
 					}
 
-					// For now, we can only handle mp4 files
-					if (!jellyfinItemPath.endsWith('.mp4')) {
+					// Check for widely compatible codec
+					// For media that is not h264 8bit in an mp4 container, we need to transcode or remux
+					const videoInfo = yield* av.getVideoInfo(jellyfinItemPath);
+					if (videoInfo.codec !== 'h264' || videoInfo.container !== 'mp4') {
 						yield* Effect.logWarning(
-							`Local media file at path: ${jellyfinItemPath} is not an mp4 file for item ${item.Id}`
+							`Media file at path: ${jellyfinItemPath} has incompatible codec/container: ${videoInfo.codec}/${videoInfo.container}`
 						);
 						return yield* new ItemFileNotFound({
-							message: `Local media file is not an mp4 file at path: ${jellyfinItemPath}`
+							message: `Media file has incompatible codec/container: ${videoInfo.codec}/${videoInfo.container}`
 						});
 					}
 

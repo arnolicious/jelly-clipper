@@ -28,6 +28,7 @@ export class AVService extends Context.Tag('AVService')<
 	{
 		clipVideo: (params: ClipVideoParams) => Effect.Effect<void, AvError>;
 		createThumbnailForClip: (clipId: number, thumbnailPercent?: number) => Effect.Effect<string, AvError>;
+		getVideoInfo: (uri: string) => Effect.Effect<{ codec: VideoCodec; container: VideoContainer }, AvError>;
 	}
 >() {
 	static readonly FfmpegLayer = Layer.effect(
@@ -135,11 +136,75 @@ export class AVService extends Context.Tag('AVService')<
 					});
 					yield* Effect.logDebug(`Thumbnail generated at ${targetPath} for clip ${clipId}`);
 					return targetPath;
+				}),
+				getVideoInfo: Effect.fn('AVService.getVideoInfo')(function* (uri: string) {
+					const proc = yield* Effect.try({
+						try: () => ffmpeg({ source: uri }),
+						catch: (error) => new AvError({ cause: error, message: `Failed to initialize ffmpeg for uri ${uri}` })
+					});
+
+					const ffprobePromise = new Promise<string>((resolve, reject) => {
+						proc.ffprobe((err, data) => {
+							if (err) {
+								reject(err);
+							} else {
+								const videoStream = data.streams.find((stream) => stream.codec_type === 'video');
+								if (videoStream && videoStream.codec_name) {
+									resolve(videoStream.codec_name);
+								} else {
+									reject(new Error('No video stream found'));
+								}
+							}
+						});
+					});
+
+					const codecResult = yield* Effect.tryPromise({
+						try: () => ffprobePromise,
+						catch: (error) => new AvError({ cause: error, message: `Failed to get codec for uri ${uri}` })
+					});
+
+					// Determine container from file extension
+					const extension = uri.split('.').pop()?.toLowerCase();
+					let container: VideoContainer;
+					switch (extension) {
+						case 'mp4':
+							container = 'mp4';
+							break;
+						case 'mkv':
+							container = 'mkv';
+							break;
+						case 'webm':
+							container = 'webm';
+							break;
+						case 'mov':
+							container = 'mov';
+							break;
+						default:
+							return yield* Effect.fail(
+								new AvError({ message: `Unsupported or unknown container format for uri ${uri}` })
+							);
+					}
+
+					const codec = yield* Schema.encodeUnknown(VideoCodecSchema)(codecResult).pipe(
+						Effect.catchAll(() =>
+							Effect.fail(new AvError({ message: `Unsupported or unknown video codec ${codecResult} for uri ${uri}` }))
+						)
+					);
+
+					return { codec, container };
 				})
 			});
 		})
 	);
 }
+
+export const VideoCodecSchema = Schema.Literal('h264', 'hevc', 'vp9', 'av1');
+
+export type VideoCodec = typeof VideoCodecSchema.Type;
+
+export const VideoContainerSchema = Schema.Literal('mp4', 'mkv', 'webm', 'mov');
+
+export type VideoContainer = typeof VideoContainerSchema.Type;
 
 export class AvError extends Schema.TaggedError<AvError>()('AvError', {
 	cause: Schema.optional(Schema.Defect),
