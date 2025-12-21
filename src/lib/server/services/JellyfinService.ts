@@ -1,15 +1,22 @@
 import type { BaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 import { Context, Effect, Layer, Schema } from 'effect';
 import { Jellyfin, type RecommendedServerInfo } from '@jellyfin/sdk';
-import { getMediaInfoApi, getSubtitleApi, getUserApi, getUserLibraryApi } from '@jellyfin/sdk/lib/utils/api';
+import {
+	getItemsApi,
+	getMediaInfoApi,
+	getSubtitleApi,
+	getUserApi,
+	getUserLibraryApi
+} from '@jellyfin/sdk/lib/utils/api';
 import { JellyClipperConfig, JellyClipperNotConfiguredError } from './ConfigService';
 import type { DatabaseError } from './DatabaseService';
 import { UserSession, NoCurrentUserError } from './UserSession';
-import { MediaSourceSchema, type MediaSource } from '../schemas/MediaSource';
-import { type AuthenticationResult, AuthenticationResultSchema } from '../schemas/AuthenticationResult';
 import type { ParseError } from 'effect/ParseResult';
-import { BaseItemDtoSchema } from '../schemas/BaseItemDto';
-import { MediaStreamSchema } from '../schemas/MediaStream';
+import { AuthenticationResultSchema, type AuthenticationResult } from '$lib/shared/AuthenticationResult';
+import { MediaSourceSchema, type MediaSource } from '$lib/shared/MediaSource';
+import { BaseItemDtoSchema } from '$lib/shared/BaseItemDto';
+import { MediaStreamSchema } from '$lib/shared/MediaStream';
+import { LatestMediaSchema, type LatestMedia } from '$lib/shared/LatestMediaSchema';
 
 type JellyfinSdkApi = ReturnType<Jellyfin['createApi']>;
 
@@ -149,6 +156,10 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 			| NoCurrentUserError
 			| NoAudioStreamsError
 			| ParseError
+		>;
+		getLatestWatchedMedia(): Effect.Effect<
+			LatestMedia,
+			DatabaseError | JellyClipperNotConfiguredError | JellyfinApiError | NoCurrentUserError | ParseError
 		>;
 	}
 >() {
@@ -344,7 +355,34 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 				getSubtitleTracks,
 				createPlaybackSession,
 				getDownloadStreamUrl,
-				getClipInfo
+				getClipInfo,
+				getLatestWatchedMedia: Effect.fn('JellyfinApi.getLatestWatchedMedia')(function* () {
+					const user = yield* currentUser.getCurrentUser();
+					const { api } = yield* getJellyfinApi();
+
+					const { data: latestItems } = yield* Effect.tryPromise({
+						try: (signal) =>
+							getItemsApi(api).getItems(
+								{
+									sortBy: ['DatePlayed'],
+									sortOrder: ['Descending'],
+									userId: user.id,
+									recursive: true,
+									parentId: 'a656b907eb3a73532e40e44b968d0225',
+									limit: 5,
+									excludeItemTypes: ['CollectionFolder'],
+									includeItemTypes: ['Episode', 'Movie']
+								},
+								{ signal }
+							),
+						catch: (error) => JellyfinApiError.make({ message: (error as Error).message })
+					});
+
+					const result = yield* Schema.decodeUnknown(LatestMediaSchema)({
+						latestItems: latestItems.Items
+					});
+					return result;
+				})
 			});
 		})
 	);

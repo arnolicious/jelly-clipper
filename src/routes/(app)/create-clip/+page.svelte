@@ -23,12 +23,30 @@
 	let buttonIsDisabled = $derived(isNavigating || sourceUrl.length === 0);
 </script>
 
-<div class="flex flex-col h-full w-1/2 justify-evenly gap-4">
+<div class="flex flex-col h-full w-1/2 justify-evenly gap-4 py-10">
 	<div class="flex flex-col gap-4">
 		<h1 class="text-2xl font-bold text-center">Welcome to Jelly-Clipper!</h1>
 		<h3 class="text-lg text-center">Create clips from your favorite movies and shows</h3>
 	</div>
+	{#if data.latestItems.length > 0}
+		<div>
+			<h2 class="text-xl font-semibold mb-2">From your latest watched items</h2>
+			<div class="flex flex-row gap-4 overflow-x-auto py-4">
+				{#each data.latestItems as item (item.Id)}
+					<a
+						class="flex-shrink-0 w-48 hover:scale-105 transition-transform"
+						data-sveltekit-preload-data="off"
+						href={`/prepare-clip/${encodeURIComponent(item.Id)}`}
+					>
+						<img class="object-cover rounded-md mb-1" src={`/api/item-image-proxy/${item.Id}`} alt={item.Name} />
+						<p class="text-sm text-center">{item.Name}</p>
+					</a>
+				{/each}
+			</div>
+		</div>
+	{/if}
 	<div class="flex flex-col gap-4">
+		<h2 class="text-xl font-semibold mb-2">Or enter a stream URL</h2>
 		<Label class="text-sm text-slate-400">
 			In <a class="text-secondary underline" target="_blank" href={data.serverAddress}>Jellyfin</a>
 			click on the 3 dots on the item in the library, then "Copy Stream URL" and paste in here

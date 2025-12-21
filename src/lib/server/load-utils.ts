@@ -68,8 +68,8 @@ export const runLoader = <T>(
 							DatabaseError: ({ message }) => {
 								return error(500, `Database error: ${message}`);
 							},
-							JellyClipperNotConfiguredError: ({ message }) => {
-								return error(500, `JellyClipper not configured: ${message}`);
+							JellyClipperNotConfiguredError: () => {
+								return redirect(302, '/setup');
 							},
 							JellyfinApiError: ({ message }) => {
 								return error(500, `Jellyfin API error: ${message}`);

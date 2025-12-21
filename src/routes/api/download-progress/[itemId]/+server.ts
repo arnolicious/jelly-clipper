@@ -9,7 +9,7 @@ const consumeStream = Effect.fn('consumeStream')(function* (itemId: string, conn
 	const downloadManager = yield* DownloadManager;
 
 	const stream = downloadManager.getDownloadEventStreamForItem(itemId);
-	Effect.logInfo(`Client connected for download progress of itemId ${itemId}`);
+	yield* Effect.logDebug(`Client connected for download progress of itemId ${itemId}`);
 
 	yield* stream.pipe(
 		Stream.runForEachWhile((event) =>
@@ -43,9 +43,9 @@ export const POST: RequestHandler = (event) => {
 	return produce(async function start(connection) {
 		await serverRuntime.runPromise(
 			Effect.gen(function* () {
-				yield* Effect.logInfo(`Download progress SSE stream started for itemId ${itemId}`);
+				yield* Effect.logDebug(`Download progress SSE stream started for itemId ${itemId}`);
 				yield* serverRuntime.runFork(consumeStream(itemId, connection));
-				yield* Effect.logInfo(`Download progress SSE stream ended for itemId ${itemId}`);
+				yield* Effect.logDebug(`Download progress SSE stream ended for itemId ${itemId}`);
 			})
 		);
 	});

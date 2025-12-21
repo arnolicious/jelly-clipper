@@ -28,7 +28,7 @@
 		let url = `/create-clip/${encodeURIComponent(page.params.source!)}`;
 
 		if (selectedAudioTrack) {
-			url += `&audioStreamIndex=${selectedAudioTrack.value}`;
+			url += `?audioStreamIndex=${selectedAudioTrack.value}`;
 		}
 
 		return url;

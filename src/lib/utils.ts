@@ -1,7 +1,7 @@
 import type { BaseItemDto as OriginalBaseItemDto } from '@jellyfin/sdk/lib/generated-client/models';
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import type { BaseItemDto } from './server/schemas/BaseItemDto';
+import type { BaseItemDto } from './shared/BaseItemDto';
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));

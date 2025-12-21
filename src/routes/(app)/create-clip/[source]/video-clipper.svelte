@@ -19,8 +19,8 @@
 	import type { SelectItem } from '$lib/types';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import * as Select from '$lib/components/ui/select';
-	import type { BaseItemDto } from '$lib/server/schemas/BaseItemDto';
 	import type { Track } from '$lib/server/services/JellyfinService';
+	import type { BaseItemDto } from '$lib/shared/BaseItemDto';
 
 	type Props = {
 		sourceId: string;

@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { Effect, pipe } from 'effect';
+import { Effect, pipe, Schema } from 'effect';
 import { DownloadMediaService } from '$lib/server/services/DownloadMediaService';
 import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/UserSession';
 import { AssetService } from '$lib/server/services/AssetService';
@@ -7,6 +7,8 @@ import { runLoader } from '$lib/server/load-utils';
 import { BadRequest, OkLoader, ServerError } from '$lib/server/responses';
 import { DownloadManager } from '$lib/server/services/DownloadManagerService';
 import { InvalidSourceFormatError, JellyfinApi } from '$lib/server/services/JellyfinService';
+import { JellyfinItemIdSchema } from '$lib/shared/JellyfinId';
+
 export type Track = {
 	index: number;
 	language: string;
@@ -14,19 +16,11 @@ export type Track = {
 	subtitleFile: string;
 };
 
-const downloadEffect = Effect.fn('downloadEffect')(function* (
-	source: string,
-	audioStreamIndex: number | null,
-	subtitleStreamIndex: number | null
-) {
-	yield* Effect.logInfo(`Starting downloadEffect for item ${source}`);
+const downloadEffect = Effect.fn('downloadEffect')(function* (source: string, audioStreamIndex: number | null) {
+	yield* Effect.logDebug(`Starting downloadEffect for item ${source}`);
 	const downloadService = yield* DownloadMediaService;
 
-	const result = yield* downloadService.downloadMedia(
-		source,
-		audioStreamIndex !== null ? audioStreamIndex : undefined,
-		subtitleStreamIndex !== null ? subtitleStreamIndex : undefined
-	);
+	const result = yield* downloadService.downloadMedia(source, audioStreamIndex !== null ? audioStreamIndex : undefined);
 
 	return result;
 });
@@ -38,31 +32,38 @@ export const load: PageServerLoad = async (event) =>
 
 			const decodedSource = decodeURIComponent(event.params.source);
 
+			let itemId: string;
+			let audioStreamIndex: number | null = null;
+
 			if (!decodedSource.includes('/')) {
-				return yield* InvalidSourceFormatError.make({ source: decodedSource });
+				const itemIdParsed = yield* Schema.decodeUnknown(JellyfinItemIdSchema)(decodedSource).pipe(
+					Effect.catchTag('ParseError', () => Effect.fail(new InvalidSourceFormatError({ source: decodedSource })))
+				);
+				itemId = itemIdParsed;
+				audioStreamIndex = Number(event.url.searchParams.get('audioStreamIndex'));
+			} else {
+				const url = new URL(decodedSource);
+				const pathname = url.pathname;
+				itemId = pathname.split('Items/')[1].split('/')[0];
+				audioStreamIndex = Number(url.searchParams.get('audioStreamIndex'));
 			}
-			const url = new URL(decodedSource);
-			const sourceId = url.pathname.split('Items/')[1].split('/')[0];
-			const audioStreamIndex = Number(url.searchParams.get('audioStreamIndex'));
-			const subtitleStreamIndex = Number(url.searchParams.get('subtitleStreamIndex'));
 
 			const assetService = yield* AssetService;
 			yield* assetService.ensureAssetDirectoriesExist();
 
 			const api = yield* JellyfinApi;
 
-			const itemInfo = yield* api.getClipInfo(sourceId);
-
+			const itemInfo = yield* api.getClipInfo(itemId);
 			// Don't yield* here, we want to run the download and pass the promise back to the client
 			const downloadProgram = pipe(
-				downloadEffect(itemInfo.info.Id, audioStreamIndex, subtitleStreamIndex),
+				downloadEffect(itemInfo.info.Id, audioStreamIndex),
 				Effect.withLogSpan('create-clip.downloadEffect'),
 				Effect.provide(makeAuthenticatedRuntimeLayer(event.locals))
 			);
 
-			yield* Effect.logInfo(`Forking download fiber for item ${itemInfo.info.Id}`);
+			yield* Effect.logDebug(`Forking download fiber for item ${itemInfo.info.Id}`);
 			const downloadFiber = yield* fiberManager.startDownloadFiber(itemInfo.info.Id, downloadProgram);
-			yield* Effect.logInfo(`Returning download promise for item ${itemInfo.info.Id}`, downloadFiber.id());
+			yield* Effect.logDebug(`Returning download promise for item ${itemInfo.info.Id}`, downloadFiber.id());
 			const downloadResult = Effect.runPromiseExit(downloadFiber).then((exit) => {
 				if (exit._tag === 'Success') {
 					return exit.value;

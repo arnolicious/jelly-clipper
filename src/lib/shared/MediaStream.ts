@@ -88,8 +88,6 @@ const _MediaStreamSchema = Schema.Struct({
 	IsAnamorphic: OptionalBooleanOrNull
 }).annotations({ identifier: 'MediaStream' });
 
-// export type MediaStream = typeof MediaStreamSchema.Type;
-
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface MediaStream extends Schema.Schema.Type<typeof _MediaStreamSchema> {}
 

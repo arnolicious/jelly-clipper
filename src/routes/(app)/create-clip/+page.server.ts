@@ -1,20 +1,21 @@
-import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { validateSetup } from '$lib/server/db/setup';
+import { runLoader } from '$lib/server/load-utils';
+import { Effect } from 'effect';
+import { JellyClipperConfig } from '$lib/server/services/ConfigService';
+import { OkLoader } from '$lib/server/responses';
+import { JellyfinApi } from '$lib/server/services/JellyfinService';
+import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/UserSession';
 
-export const load: PageServerLoad = async (event) => {
-	const validatedSetup = await validateSetup();
+export const load: PageServerLoad = async (event) =>
+	runLoader(
+		Effect.gen(function* () {
+			const config = yield* JellyClipperConfig;
+			const jellyfinUrl = yield* config.getJellyfinUrl();
+			const api = yield* JellyfinApi;
 
-	if (!validatedSetup.setupIsFinished) {
-		redirect(302, '/setup');
-	}
+			const { latestItems } = yield* api.getLatestWatchedMedia();
 
-	// If user is not logged in, redirect to the login page
-	if (!event.locals.user) {
-		redirect(302, '/login');
-	}
-
-	return {
-		serverAddress: validatedSetup.serverAddress
-	};
-};
+			return new OkLoader({ data: { serverAddress: jellyfinUrl, latestItems } });
+		}).pipe(Effect.provide(makeAuthenticatedRuntimeLayer(event.locals))),
+		'/create-clip'
+	);

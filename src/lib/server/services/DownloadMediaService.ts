@@ -26,8 +26,7 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 	{
 		downloadMedia: (
 			itemId: string,
-			audioStreamIndex?: number,
-			subtitleStreamIndex?: number
+			audioStreamIndex?: number
 		) => Effect.Effect<
 			DownloadResult,
 			| JellyfinApiError
