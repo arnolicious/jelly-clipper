@@ -80,10 +80,7 @@
 <Card.Root>
 	<Card.Header class="flex flex-row gap-2 items-center">
 		<Avatar.Root>
-			<Avatar.Image
-				src="{jellyfinAddress}UserImage?UserId={creator.jellyfinUserId}"
-				alt={creator.jellyfinUserName}
-			/>
+			<Avatar.Image src="{jellyfinAddress}UserImage?UserId={creator.jellyfinUserId}" alt={creator.jellyfinUserName} />
 			<Avatar.Fallback>{creator.jellyfinUserName.slice(0, 2)}</Avatar.Fallback>
 		</Avatar.Root>
 		<div class="flex flex-col">
@@ -119,10 +116,7 @@
 	<Card.Footer>
 		<div class="w-full flex justify-between">
 			{#if clip.userId !== currentUser.jellyfinUserId}
-				<Button
-					variant="destructive"
-					onclick={() => deleteConfirmation?.withConfirmation(() => onDeleteClip())}
-				>
+				<Button variant="destructive" onclick={() => deleteConfirmation?.withConfirmation(() => onDeleteClip())}>
 					<i class="text-xl ph ph-trash"></i>
 					Delete Clip
 				</Button>

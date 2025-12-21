@@ -11,6 +11,7 @@ RUN npm install -g pnpm@latest-10
 
 WORKDIR /app
 COPY package.json package.json
+COPY pnpm-lock.yaml pnpm-lock.yaml
 RUN pnpm install --frozen-lockfile
 
 # Create db file

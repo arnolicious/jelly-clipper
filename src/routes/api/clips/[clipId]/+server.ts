@@ -36,7 +36,7 @@ export const DELETE: RequestHandler = async ({ params, cookies }) => {
 		.execute();
 
 	// Check if video exists
-	if (!fs.existsSync(videoPath)) {
+	if (fs.existsSync(videoPath)) {
 		// Delete the video file
 		fs.unlinkSync(videoPath);
 	}
