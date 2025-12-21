@@ -29,8 +29,3 @@ export const LatestMediaSchema = Schema.Struct({
 }).annotations({ identifier: 'LatestMedia' });
 
 export type LatestMedia = typeof LatestMediaSchema.Type;
-
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-// export interface LatestMedia extends Schema.Struct.Type<typeof _LatestMediaSchema> {}
-
-// export const LatestMediaSchema: Schema.Schema<LatestMedia> = _LatestMediaSchema;
