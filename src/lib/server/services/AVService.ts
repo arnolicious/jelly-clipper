@@ -2,7 +2,6 @@ import { Context, Effect, Layer, Schema } from 'effect';
 import ffmpeg from 'fluent-ffmpeg';
 import type { SrtStringContent, SubtitleTrack } from './CreateClipService';
 import { AssetService } from './AssetService';
-import {} from 'node-av/api';
 
 interface ClipVideoParams {
 	clipId: number;
