@@ -15,7 +15,8 @@ export const GET: RequestHandler = async (event) => {
 	);
 
 	if (Exit.isFailure(exit)) {
-		console.error(`Failed to cancel download for sourceId ${sourceId}:`, exit.cause.toString());
+		// console.error(`Failed to cancel download for sourceId ${sourceId}:`, exit.cause.toString());
+		Effect.logError(`Failed to cancel download for sourceId ${sourceId}:`, exit.cause).pipe(serverRuntime.runSync);
 		return new Response(null, { status: 500 });
 	}
 

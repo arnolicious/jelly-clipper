@@ -72,7 +72,8 @@ export const actions: Actions = {
 		const bestServer = bestServerExit.value;
 
 		if (!bestServer) {
-			console.error('No Jellyfin server found at', form.data.jellyfinServerUrl);
+			// console.error('No Jellyfin server found at', form.data.jellyfinServerUrl);
+			Effect.logError('No Jellyfin server found at', form.data.jellyfinServerUrl).pipe(serverRuntime.runSync);
 			return fail(400, {
 				form: {
 					...form,
@@ -84,7 +85,8 @@ export const actions: Actions = {
 		}
 
 		const address = bestServer.address.endsWith('/') ? bestServer.address : bestServer.address + '/';
-		console.info('Found Jellyfin server at', address);
+		// console.info('Found Jellyfin server at', address);
+		Effect.logInfo('Found Jellyfin server at', address).pipe(serverRuntime.runSync);
 
 		return message(form, {
 			status: 'success',
@@ -97,7 +99,8 @@ export const actions: Actions = {
 		const form = await superValidate(formData, zod4(loginFormSchema));
 		const serverUrl = formData.get('serverUrl')?.toString();
 
-		console.info('Logging in to Jellyfin server at', serverUrl);
+		// console.info('Logging in to Jellyfin server at', serverUrl);
+		Effect.logInfo('Logging in to Jellyfin server at', serverUrl).pipe(serverRuntime.runSync);
 
 		if (!form.valid || !serverUrl) {
 			return fail(400, {
@@ -125,7 +128,8 @@ export const actions: Actions = {
 		const accessToken = auth.AccessToken;
 		const user = auth.User;
 
-		console.info('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name);
+		// console.info('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name);
+		Effect.logInfo('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name).pipe(serverRuntime.runSync);
 
 		if (!accessToken || !user) {
 			return fail(401, {

@@ -42,7 +42,7 @@ export const runLoader = <T>(
 	return serverRuntime.runPromiseExit(runnable).then(
 		Exit.match({
 			onFailure: (cause) => {
-				console.error('🚨 Error in loader', cause);
+				Effect.logError('🚨 Error in loader', cause).pipe(serverRuntime.runSync);
 				if (cause._tag === 'Fail') {
 					return pipe(
 						cause.error,
@@ -118,7 +118,7 @@ export const runAction = (self: ActionEffect) => (event: RequestEvent) => {
 	return Effect.runPromiseExit(runnable).then(
 		Exit.match({
 			onFailure: (cause) => {
-				console.error('🚨 Error in action', cause);
+				Effect.logError('🚨 Error in action', cause).pipe(serverRuntime.runSync);
 				if (cause._tag === 'Fail') {
 					return pipe(
 						cause.error,
