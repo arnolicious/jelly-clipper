@@ -38,7 +38,11 @@
 						data-sveltekit-preload-data="off"
 						href={`/prepare-clip/${encodeURIComponent(item.Id)}`}
 					>
-						<img class="object-cover rounded-md mb-1" src={`/api/item-image-proxy/${item.Id}`} alt={item.Name} />
+						<img
+							class="object-cover w-48 h-32 rounded-md mb-1"
+							src={`/api/item-image-proxy/${item.Id}`}
+							alt={item.Name}
+						/>
 						<p class="text-sm text-center">{item.Name}</p>
 					</a>
 				{/each}

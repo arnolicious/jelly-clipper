@@ -57,17 +57,6 @@ export const load: PageServerLoad = async (event) =>
 
 			const itemInfo = yield* api.getClipInfo(itemId);
 
-			/**
-			 * Refactor:
-			 * 1. Check for local media file
-			 * 2. Then check file video codec/container
-			 * 3. If both pass, no download needed
-			 * 4. If the video is incompatible, we need to transcode it
-			 * 5. If no local file, we need to download it
-			 *
-			 * The progress SSE notifications need to be expanded and generalized to handle transcoding as well
-			 */
-
 			// Check if we can find the original file on disk
 			yield* libraryService.checkForLocalMediaFile(itemInfo.info).pipe(Effect.catchAll(() => Effect.succeed(null)));
 

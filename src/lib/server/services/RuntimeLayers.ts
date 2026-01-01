@@ -29,11 +29,10 @@ export const UserAgnosticLayer = Layer.mergeAll(
 	DownloadManagerLayer,
 	DatabaseServiceLayer,
 	AssetServiceLayer,
-	AvServiceLayer,
 	AnonymousJellyfinApiLayer,
 	LibraryServiceLayer,
 	ConfigLayer
-).pipe(Layer.provide(LoggingLayer));
+).pipe(Layer.provide(LoggingLayer), Layer.provideMerge(AvServiceLayer));
 
 // Authenticated User Layers
 const AuthedJellyfinApiLayer = JellyfinApi.Default;
