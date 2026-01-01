@@ -21,6 +21,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import type { Track } from '$lib/server/services/JellyfinService';
 	import type { BaseItemDto } from '$lib/shared/BaseItemDto';
+	import { playerVolume, PlayerVolumeSchema } from '$lib/client/volume.svelte';
 
 	type Props = {
 		sourceId: string;
@@ -216,6 +217,20 @@
 			class=""
 			duration={videoRuntime}
 			on:time-change={onTimeChange}
+			volume={playerVolume.current}
+			on:play={async () => {
+				// Workaround for: https://github.com/vidstack/player/issues/1416
+				if (player) {
+					setTimeout(() => {
+						player!.volume = playerVolume.current;
+					}, 0);
+				}
+			}}
+			on:volume-change={(e) => {
+				if (e.target.volume !== undefined) {
+					playerVolume.current = PlayerVolumeSchema.make(e.target.volume);
+				}
+			}}
 		>
 			<div bind:this={triggerEl} style="visibility: none;"></div>
 			<media-provider>
