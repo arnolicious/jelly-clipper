@@ -6,7 +6,6 @@
 	import { superForm, type FormResult } from 'sveltekit-superforms';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { goto } from '$app/navigation';
-	import { fade } from 'svelte/transition';
 	import type { ActionData, PageData } from './$types';
 	import { loginFormSchema } from '../login/schema';
 
@@ -16,6 +15,7 @@
 
 	let { data }: Props = $props();
 
+	// svelte-ignore state_referenced_locally
 	const loginForm = superForm(data.loginForm, {
 		validators: zod4Client(loginFormSchema),
 		onSubmit: () => {
@@ -40,11 +40,7 @@
 		onError: ({ result }) => toast.error(result.error.message, { id: 'login-check' })
 	});
 
-	const {
-		form: setupLoginFormData,
-		enhance: setupLoginEnhance,
-		submitting: setupLoginSubmitting
-	} = loginForm;
+	const { form: setupLoginFormData, enhance: setupLoginEnhance, submitting: setupLoginSubmitting } = loginForm;
 </script>
 
 <Card.Root>
@@ -53,7 +49,7 @@
 		<Card.Description>Please enter your Jellyfin credentials to log in.</Card.Description>
 	</Card.Header>
 	<Card.Content>
-		<form method="POST" action="?/login" use:setupLoginEnhance transition:fade>
+		<form method="POST" action="?/login" use:setupLoginEnhance>
 			<Form.Field form={loginForm} name="username">
 				<Form.Control>
 					{#snippet children({ props })}

@@ -3,7 +3,7 @@ import { readdirSync, statSync, unlinkSync } from 'fs';
 const ORIGINALS_PATH = './assets/videos/originals';
 
 export function cleanUpOriginalsFolder() {
-	console.log('Cleaning up originals folder');
+	console.info('Cleaning up originals folder');
 	// Iterate over all files in the originals folder
 	// If the file is older than 1 day, delete it
 	const files = readdirSync(ORIGINALS_PATH);
@@ -16,12 +16,12 @@ export function cleanUpOriginalsFolder() {
 		const stats = statSync(filePath);
 		const fileAge = now - stats.mtimeMs;
 		if (fileAge > maxAge) {
-			console.log(`Deleting ${filePath}`);
+			console.info(`Deleting ${filePath}`);
 			unlinkSync(filePath);
 			filesDeleted++;
 		} else {
 			filesSkipped++;
 		}
 	});
-	console.log(`Deleted ${filesDeleted} files, skipped ${filesSkipped} files`);
+	console.info(`Deleted ${filesDeleted} files, skipped ${filesSkipped} files`);
 }
