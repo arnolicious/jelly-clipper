@@ -27,7 +27,11 @@ Jelly-Clipper is an open-source web application that allows Jellyfin users to ea
 
 This tool takes a very simple approach:
 
-1. Jelly-Clipper downloads the original file from jellyfin
+1. Jelly-Clipper checks if it can find the original file from jellyfin locally at the same path
+
+- If it can **and** if it is mp4 - h264, no download will happen
+- If not Jelly-Clipper downloads the original file (transcoded) from jellyfin
+
 2. The user can create their clip
 3. The clip will be saved indefinitely in their profile and is accessible for other members of the jellyfin instance
 4. The downloaded original files get cleaned up regularly, if they're older than 2 days, to save storage
@@ -48,10 +52,12 @@ services:
     volumes:
       # Path to the db directory, in which the sqlite db file will live
       - <MY_DB_PATH>:/app/db
+
       # Path to the videos directory.
       # This will store all the clips permanently and the original files temporarily,
       # so it might get a lil big
       - <MY_VIDEOS_PATH>:/app/assets/videos
+
       # If jelly-clipper runs on the same server as jellyfin
       # you can mount the jellyfin media folder into jelly-clipper in the same exact same way it is mounted in jellyfin
       # This allows jelly-clipper to directly access the media, instead of needing to download it
@@ -68,11 +74,12 @@ services:
 
 ## 💻 Technologies
 
-- SvelteKit
+- SvelteKits
 - Svelte 5
 - TypeScript
 - Bun
 - Drizzle ORM
+- Effect-TS
 
 ## 🤝 Development
 

@@ -1,6 +1,6 @@
 {
 	"name": "jelly-clipper",
-	"version": "0.5.0",
+	"version": "1.0.2",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
