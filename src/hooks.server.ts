@@ -23,7 +23,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 };
 
 export const handleError: HandleServerError = async ({ error, message }) => {
-	Effect.logError(`Server error`, error, message).pipe(serverRuntime.runSync);
+	await Effect.logError(`Server error`, error, message).pipe(serverRuntime.runPromise);
 	// console.error(`Server error`, error, message);
 
 	return {
