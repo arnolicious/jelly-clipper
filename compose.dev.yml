@@ -1,0 +1,14 @@
+services:
+  jelly-clipper:
+    # image: arnolicious/jelly-clipper:latest
+    build: .
+    container_name: jelly-clipper
+    ports:
+      - 3001:3000
+    volumes:
+      - ./deploy/db:/app/db
+      - ./deploy/videos:/app/assets/videos
+    restart: unless-stopped
+    environment:
+      - JELLY_CLIPPER_ORIGIN=http://localhost:3001
+      - TZ=Europe/Berlin
