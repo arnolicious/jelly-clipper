@@ -33,6 +33,13 @@ export function formatSecondsAsDuration(seconds: number): string {
 export function formatTimestamp(seconds: number): string {
 	const minutes = Math.floor(seconds / 60);
 	const secs = (seconds % 60).toFixed(1);
+
+	if (minutes >= 60) {
+		const hours = Math.floor(minutes / 60);
+		const remainingMinutes = minutes % 60;
+		return `${hours}:${remainingMinutes.toString().padStart(2, '0')}:${secs.padStart(4, '0')}`;
+	}
+
 	return `${minutes}:${secs.padStart(4, '0')}`;
 }
 
