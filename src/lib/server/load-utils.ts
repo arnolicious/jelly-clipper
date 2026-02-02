@@ -14,9 +14,7 @@ import { setError } from 'sveltekit-superforms';
 import { serverRuntime, UserAgnosticLayer } from './services/RuntimeLayers';
 import type { SpanOptions } from 'effect/Tracer';
 
-export const onFailure = <TError extends { message: string }>(
-	cause: Cause.Cause<TError>
-): never => {
+export const onFailure = <TError extends { message: string }>(cause: Cause.Cause<TError>): never => {
 	if (cause._tag === 'Fail') {
 		return error(500, cause.error.message);
 	}
@@ -38,10 +36,7 @@ export const runLoader = <T>(
 				? _
 				: typeof span === 'string'
 					? Effect.withSpan(`load:${span}`)(_).pipe(Effect.withLogSpan(`load:${span}`))
-					: Effect.withSpan(
-							`load:${span.span}`,
-							span.spanOptions
-						)(_).pipe(Effect.withLogSpan(`load:${span.span}`))
+					: Effect.withSpan(`load:${span.span}`, span.spanOptions)(_).pipe(Effect.withLogSpan(`load:${span.span}`))
 	);
 
 	return serverRuntime.runPromiseExit(runnable).then(

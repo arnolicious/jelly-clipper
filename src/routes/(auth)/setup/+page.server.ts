@@ -25,9 +25,7 @@ export const load: PageServerLoad = async () => {
 	};
 };
 
-const findJellyfinServer = Effect.fn('setup.findJellyfinServer')(function* (
-	jellyfinServerUrl: string
-) {
+const findJellyfinServer = Effect.fn('setup.findJellyfinServer')(function* (jellyfinServerUrl: string) {
 	const anonymousApi = yield* AnonymousJellyfinApi;
 	const server = yield* anonymousApi.findServerByAddress(jellyfinServerUrl);
 	return server;
@@ -59,9 +57,7 @@ export const actions: Actions = {
 		}
 
 		const bestServerExit = await serverRuntime.runPromiseExit(
-			findJellyfinServer(form.data.jellyfinServerUrl).pipe(
-				Effect.withLogSpan('setup.findJellyfinServer')
-			)
+			findJellyfinServer(form.data.jellyfinServerUrl).pipe(Effect.withLogSpan('setup.findJellyfinServer'))
 		);
 
 		if (Exit.isFailure(bestServerExit)) {
@@ -76,9 +72,7 @@ export const actions: Actions = {
 		const bestServer = bestServerExit.value;
 
 		if (!bestServer) {
-			await Effect.logError('No Jellyfin server found at', form.data.jellyfinServerUrl).pipe(
-				serverRuntime.runPromise
-			);
+			await Effect.logError('No Jellyfin server found at', form.data.jellyfinServerUrl).pipe(serverRuntime.runPromise);
 			return fail(400, {
 				form: {
 					...form,
@@ -89,9 +83,7 @@ export const actions: Actions = {
 			});
 		}
 
-		const address = bestServer.address.endsWith('/')
-			? bestServer.address
-			: bestServer.address + '/';
+		const address = bestServer.address.endsWith('/') ? bestServer.address : bestServer.address + '/';
 		await Effect.logInfo('Found Jellyfin server at', address).pipe(serverRuntime.runPromise);
 
 		return message(form, {
@@ -105,9 +97,7 @@ export const actions: Actions = {
 		const form = await superValidate(formData, zod4(loginFormSchema));
 		const serverUrl = formData.get('serverUrl')?.toString();
 
-		await Effect.logInfo('Logging in to Jellyfin server at', serverUrl).pipe(
-			serverRuntime.runPromise
-		);
+		await Effect.logInfo('Logging in to Jellyfin server at', serverUrl).pipe(serverRuntime.runPromise);
 
 		if (!form.valid || !serverUrl) {
 			return fail(400, {
@@ -135,9 +125,7 @@ export const actions: Actions = {
 		const accessToken = auth.AccessToken;
 		const user = auth.User;
 
-		await Effect.logInfo('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name).pipe(
-			serverRuntime.runPromise
-		);
+		await Effect.logInfo('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name).pipe(serverRuntime.runPromise);
 
 		if (!accessToken || !user) {
 			return fail(401, {

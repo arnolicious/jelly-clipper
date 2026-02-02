@@ -92,10 +92,6 @@
 		return Array.from({ length: finalSegmentCount }, (_, i) => i);
 	});
 
-	$inspect('FullDurationSecs', fullDurationSecs);
-	$inspect('VisibleDurationPercentage', visibleDurationPercentage);
-	$inspect('Segment count', timeSegments.length);
-
 	let startTime = $state(0);
 	let endTime = $derived(Math.min(fullDurationSecs, 30)); // Default range of 30 seconds
 	let draggingHandle: 'start' | 'end' | 'full' | null = $state(null);
