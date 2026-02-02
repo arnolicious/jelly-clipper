@@ -72,11 +72,7 @@
 					</Card.Header>
 					<Card.Content class="p-4">
 						<a href="/clip/{clip.id}">
-							<img
-								alt={clip.title}
-								src="/api/thumb/{clip.id}"
-								class="bg-slate-600 rounded-md w-full aspect-video"
-							/>
+							<img alt={clip.title} src="/api/thumb/{clip.id}" class="bg-slate-600 rounded-md w-full aspect-video" />
 							<p class="text-sm text-wrap">{clip.sourceTitle}</p>
 						</a>
 					</Card.Content>

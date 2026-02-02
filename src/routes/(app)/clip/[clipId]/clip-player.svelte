@@ -8,6 +8,7 @@
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import DeleteConfirmation from '$lib/components/delete-confirmation/delete-confirmation.svelte';
+	import { playerVolume, PlayerVolumeSchema } from '$lib/client/volume.svelte';
 
 	type Props = {
 		clip: Clip;
@@ -80,10 +81,7 @@
 <Card.Root>
 	<Card.Header class="flex flex-row gap-2 items-center">
 		<Avatar.Root>
-			<Avatar.Image
-				src="{jellyfinAddress}UserImage?UserId={creator.jellyfinUserId}"
-				alt={creator.jellyfinUserName}
-			/>
+			<Avatar.Image src="{jellyfinAddress}UserImage?UserId={creator.jellyfinUserId}" alt={creator.jellyfinUserName} />
 			<Avatar.Fallback>{creator.jellyfinUserName.slice(0, 2)}</Avatar.Fallback>
 		</Avatar.Root>
 		<div class="flex flex-col">
@@ -98,6 +96,7 @@
 	</Card.Header>
 	<Card.Content>
 		<div class="flex flex-col w-full h-full max-h-[540px] max-w-[960px]">
+			<!-- svelte-ignore event_directive_deprecated -->
 			<media-player
 				poster="/api/thumb/{clip.id}"
 				posterLoad="eager"
@@ -105,8 +104,23 @@
 				title={clip?.title}
 				streamType="on-demand"
 				load="eager"
-				autoPlay
 				loop
+				autoPlay={false}
+				volume={playerVolume.current}
+				on:can-play={async () => {
+					// Workaround for: https://github.com/vidstack/player/issues/1416
+					if (player) {
+						player.play();
+						setTimeout(() => {
+							player!.volume = playerVolume.current;
+						}, 0);
+					}
+				}}
+				on:volume-change={(e) => {
+					if (e.target.volume !== undefined) {
+						playerVolume.current = PlayerVolumeSchema.make(e.target.volume);
+					}
+				}}
 			>
 				<media-poster class="vds-poster" src="/api/thumb/{clip.id}"></media-poster>
 				<media-provider>
@@ -119,10 +133,7 @@
 	<Card.Footer>
 		<div class="w-full flex justify-between">
 			{#if clip.userId !== currentUser.jellyfinUserId}
-				<Button
-					variant="destructive"
-					onclick={() => deleteConfirmation?.withConfirmation(() => onDeleteClip())}
-				>
+				<Button variant="destructive" onclick={() => deleteConfirmation?.withConfirmation(() => onDeleteClip())}>
 					<i class="text-xl ph ph-trash"></i>
 					Delete Clip
 				</Button>

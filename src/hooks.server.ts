@@ -1,5 +1,7 @@
 import { getUserFromSession } from '$lib/server/db/sessions';
 import { type Handle, type HandleServerError } from '@sveltejs/kit';
+import { Effect } from 'effect';
+import { serverRuntime } from '$lib/server/services/RuntimeLayers';
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const sessionId = event.cookies.get('sessionid');
@@ -21,7 +23,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 };
 
 export const handleError: HandleServerError = async ({ error, message }) => {
-	console.error(`Server error`, error, message);
+	await Effect.logError(`Server error`, error, message).pipe(serverRuntime.runPromise);
+	// console.error(`Server error`, error, message);
 
 	return {
 		message: 'Whoops!'

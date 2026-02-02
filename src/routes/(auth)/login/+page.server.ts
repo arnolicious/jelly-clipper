@@ -6,8 +6,10 @@ import { loginFormSchema } from './schema';
 import { db } from '$lib/server/db';
 import { eq } from 'drizzle-orm';
 import { SETTING_KEYS, settings, users } from '$lib/server/db/schema';
-import { jellyfin } from '$lib/server/jellyfin/jellyfin.svelte';
 import { createUserSession, SESSION_EXPIRY } from '$lib/server/db/sessions';
+import { Effect, Exit } from 'effect';
+import { AnonymousJellyfinApi } from '$lib/server/services/JellyfinService';
+import { serverRuntime } from '$lib/server/services/RuntimeLayers';
 
 export const load: PageServerLoad = async (event) => {
 	// If user is logged in, redirect to the home page
@@ -19,6 +21,22 @@ export const load: PageServerLoad = async (event) => {
 		loginForm: await superValidate(zod4(loginFormSchema))
 	};
 };
+
+const authenticateUser = Effect.fn('login.authenticateUser')(function* (params: {
+	username: string;
+	password: string;
+	serverUrl: string;
+}) {
+	const api = yield* AnonymousJellyfinApi;
+
+	const auth = yield* api.authenticateUserByName({
+		password: params.password,
+		username: params.username,
+		serverAddress: params.serverUrl
+	});
+
+	return auth;
+});
 
 export const actions: Actions = {
 	login: async ({ request, cookies }) => {
@@ -32,7 +50,8 @@ export const actions: Actions = {
 				.execute()
 		)?.value;
 
-		console.log('Logging in to Jellyfin server at', serverUrl);
+		// console.info('Logging in to Jellyfin server at', serverUrl);
+		await Effect.logInfo('Logging in to Jellyfin server at', serverUrl).pipe(serverRuntime.runPromise);
 
 		if (!form.valid || !serverUrl) {
 			return fail(400, {
@@ -40,12 +59,31 @@ export const actions: Actions = {
 			});
 		}
 
-		const api = jellyfin.createApi(serverUrl);
-		const auth = await api.authenticateUserByName(form.data.username, form.data.password);
-		const accessToken = auth.data.AccessToken;
-		const user = auth.data.User;
+		const authExit = await serverRuntime.runPromiseExit(
+			authenticateUser({
+				username: form.data.username,
+				password: form.data.password,
+				serverUrl: serverUrl
+			}).pipe(Effect.withLogSpan('login.authenticateUser'))
+		);
 
-		console.log('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name);
+		if (Exit.isFailure(authExit)) {
+			const cause = authExit.cause;
+			if (cause._tag === 'Fail' && cause.error._tag === 'JellyfinApiError') {
+				const code = cause.error._tag === 'JellyfinApiError' ? 401 : 500;
+				return fail(code, {
+					form
+				});
+			}
+			return fail(500, 'An unexpected error occurred: ' + cause.toString());
+		}
+
+		const auth = authExit.value;
+		const accessToken = auth.AccessToken;
+		const user = auth.User;
+
+		// console.info('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name);
+		await Effect.logInfo('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name).pipe(serverRuntime.runPromise);
 
 		if (!accessToken || !user) {
 			return fail(401, {
@@ -71,9 +109,9 @@ export const actions: Actions = {
 				.update(users)
 				.set({
 					jellyfinAccessToken: accessToken,
-					jellyfinUserName: user.Name as string
+					jellyfinUserName: user.Name
 				})
-				.where(eq(users.jellyfinUserId, user.Id as string))
+				.where(eq(users.jellyfinUserId, user.Id))
 				.execute();
 		} else {
 			// Add the user
@@ -82,15 +120,15 @@ export const actions: Actions = {
 				.values({
 					isAdmin: true,
 					jellyfinAccessToken: accessToken,
-					jellyfinUserId: user.Id as string,
+					jellyfinUserId: user.Id,
 					jellyfinAvatarUrl: `/api/avatarproxy/${user.Id}`,
-					jellyfinUserName: user.Name as string
+					jellyfinUserName: user.Name
 				})
 				.execute();
 		}
 
 		// Create a session
-		const sessionId = await createUserSession(user.Id as string, accessToken);
+		const sessionId = await createUserSession(user.Id, accessToken);
 
 		// Set the session cookie
 		cookies.set('sessionid', sessionId, {
@@ -101,7 +139,7 @@ export const actions: Actions = {
 
 		return {
 			form,
-			user: auth.data.User
+			user: auth.User
 		};
 	}
 };

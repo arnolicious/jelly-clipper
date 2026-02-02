@@ -1,6 +1,8 @@
 import { validateSetup } from '$lib/server/db/setup';
 import { redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
+import { serverRuntime } from '$lib/server/services/RuntimeLayers';
+import { Effect } from 'effect';
 
 export const load: LayoutServerLoad = async (event) => {
 	const validatedSetup = await validateSetup();
@@ -14,15 +16,14 @@ export const load: LayoutServerLoad = async (event) => {
 		redirect(302, '/login');
 	}
 
-	// Fetch jellyfin info stuff
-	// const mediaFolders = await getMediaFolders(
-	// 	validatedSetup.serverAddress,
-	// 	event.locals.user.jellyfinAccessToken
-	// );
+	await serverRuntime.runPromise(
+		Effect.gen(function* () {
+			yield* Effect.log('Started (app) layout load');
+		})
+	);
 
 	return {
 		user: event.locals.user,
 		serverAddress: validatedSetup.serverAddress
-		// mediaFolders: mediaFolders.Items ?? []
 	};
 };

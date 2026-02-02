@@ -12,10 +12,5 @@
 {#if !data.clip}
 	<p>Loading...</p>
 {:else}
-	<ClipPlayer
-		currentUser={data.user}
-		jellyfinAddress={data.serverAddress}
-		creator={data.creator}
-		clip={data.clip}
-	/>
+	<ClipPlayer currentUser={data.user} jellyfinAddress={data.serverAddress} creator={data.creator} clip={data.clip} />
 {/if}

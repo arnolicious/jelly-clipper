@@ -18,11 +18,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	if (!fs.existsSync(audioPath)) {
 		// Extract audio from video
 		await new Promise((resolve, reject) => {
-			ffmpeg(videoPath)
-				.toFormat('mp3')
-				.saveToFile(audioPath)
-				.on('end', resolve)
-				.on('error', reject);
+			ffmpeg(videoPath).toFormat('mp3').saveToFile(audioPath).on('end', resolve).on('error', reject);
 		});
 	}
 

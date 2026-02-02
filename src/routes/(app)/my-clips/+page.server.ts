@@ -1,26 +1,18 @@
-import { validateSetup } from '$lib/server/db/setup';
-import { fail } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { db } from '$lib/server/db';
-import { eq } from 'drizzle-orm';
-import { clips } from '$lib/server/db/schema';
+import { Effect } from 'effect';
+import { ClipService } from '$lib/server/services/ClipService';
+import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/UserSession';
+import { runLoader } from '$lib/server/load-utils';
+import { OkLoader } from '$lib/server/responses';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	const validatedSetup = await validateSetup();
+export const load: PageServerLoad = (event) =>
+	runLoader(
+		Effect.gen(function* () {
+			const clipService = yield* ClipService;
 
-	const user = locals.user;
+			const clips = yield* clipService.getAllUserClips();
 
-	if (!validatedSetup.setupIsFinished || !user) {
-		return fail(401);
-	}
-
-	const userClips = await db.query.clips
-		.findMany({
-			where: eq(clips.userId, user.jellyfinUserId)
-		})
-		.execute();
-
-	return {
-		clips: userClips
-	};
-};
+			return new OkLoader({ data: { clips } });
+		}).pipe(Effect.provide(makeAuthenticatedRuntimeLayer(event.locals))),
+		'/my-clips'
+	);

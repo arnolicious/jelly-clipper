@@ -7,8 +7,10 @@ import { db } from '$lib/server/db/index.js';
 import { SETTING_KEYS, settings, users } from '$lib/server/db/schema.js';
 import { validateSetup } from '$lib/server/db/setup.js';
 import { createUserSession, SESSION_EXPIRY } from '$lib/server/db/sessions.js';
-import { jellyfin } from '$lib/server/jellyfin/jellyfin.svelte.js';
 import { loginFormSchema } from '../login/schema.js';
+import { AnonymousJellyfinApi } from '$lib/server/services/JellyfinService.js';
+import { Effect, Exit } from 'effect';
+import { serverRuntime } from '$lib/server/services/RuntimeLayers.js';
 
 export const load: PageServerLoad = async () => {
 	const validatedSetup = await validateSetup();
@@ -23,6 +25,28 @@ export const load: PageServerLoad = async () => {
 	};
 };
 
+const findJellyfinServer = Effect.fn('setup.findJellyfinServer')(function* (jellyfinServerUrl: string) {
+	const anonymousApi = yield* AnonymousJellyfinApi;
+	const server = yield* anonymousApi.findServerByAddress(jellyfinServerUrl);
+	return server;
+});
+
+const authenticateUser = Effect.fn('setup.authenticateUser')(function* (params: {
+	username: string;
+	password: string;
+	serverUrl: string;
+}) {
+	const api = yield* AnonymousJellyfinApi;
+
+	const auth = yield* api.authenticateUserByName({
+		password: params.password,
+		username: params.username,
+		serverAddress: params.serverUrl
+	});
+
+	return auth;
+});
+
 export const actions: Actions = {
 	setup: async (event) => {
 		const form = await superValidate(event, zod4(setupFormSchema));
@@ -32,15 +56,23 @@ export const actions: Actions = {
 			});
 		}
 
-		console.log('Checking Jellyfin server at', form.data.jellyfinServerUrl);
-
-		const servers = await jellyfin.discovery.getRecommendedServerCandidates(
-			form.data.jellyfinServerUrl
+		const bestServerExit = await serverRuntime.runPromiseExit(
+			findJellyfinServer(form.data.jellyfinServerUrl).pipe(Effect.withLogSpan('setup.findJellyfinServer'))
 		);
-		const bestServer = jellyfin.discovery.findBestServer(servers);
+
+		if (Exit.isFailure(bestServerExit)) {
+			const cause = bestServerExit.cause;
+			if (cause._tag === 'Fail') {
+				const code = cause.error._tag === 'JellyfinServerNotFound' ? 404 : 500;
+				return fail(code, cause.error.message);
+			}
+			return fail(500, 'An unexpected error occurred: ' + cause.toString());
+		}
+
+		const bestServer = bestServerExit.value;
 
 		if (!bestServer) {
-			console.log('No Jellyfin server found at', form.data.jellyfinServerUrl);
+			await Effect.logError('No Jellyfin server found at', form.data.jellyfinServerUrl).pipe(serverRuntime.runPromise);
 			return fail(400, {
 				form: {
 					...form,
@@ -51,10 +83,8 @@ export const actions: Actions = {
 			});
 		}
 
-		const address = bestServer.address.endsWith('/')
-			? bestServer.address
-			: bestServer.address + '/';
-		console.log('Found Jellyfin server at', address);
+		const address = bestServer.address.endsWith('/') ? bestServer.address : bestServer.address + '/';
+		await Effect.logInfo('Found Jellyfin server at', address).pipe(serverRuntime.runPromise);
 
 		return message(form, {
 			status: 'success',
@@ -67,7 +97,7 @@ export const actions: Actions = {
 		const form = await superValidate(formData, zod4(loginFormSchema));
 		const serverUrl = formData.get('serverUrl')?.toString();
 
-		console.log('Logging in to Jellyfin server at', serverUrl);
+		await Effect.logInfo('Logging in to Jellyfin server at', serverUrl).pipe(serverRuntime.runPromise);
 
 		if (!form.valid || !serverUrl) {
 			return fail(400, {
@@ -75,12 +105,27 @@ export const actions: Actions = {
 			});
 		}
 
-		const api = jellyfin.createApi(serverUrl);
-		const auth = await api.authenticateUserByName(form.data.username, form.data.password);
-		const accessToken = auth.data.AccessToken;
-		const user = auth.data.User;
+		const authExit = await serverRuntime.runPromiseExit(
+			authenticateUser({
+				username: form.data.username,
+				password: form.data.password,
+				serverUrl: serverUrl
+			}).pipe(Effect.withLogSpan('setup.authenticateUser'))
+		);
 
-		console.log('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name);
+		if (Exit.isFailure(authExit)) {
+			const cause = authExit.cause;
+			if (cause._tag === 'Fail' && cause.error._tag === 'JellyfinApiError') {
+				const code = cause.error._tag === 'JellyfinApiError' ? 401 : 500;
+				return fail(code, cause.error.message);
+			}
+			return fail(500, 'An unexpected error occurred: ' + cause.toString());
+		}
+		const auth = authExit.value;
+		const accessToken = auth.AccessToken;
+		const user = auth.User;
+
+		await Effect.logInfo('Logged in to Jellyfin server at', serverUrl, 'as', user?.Name).pipe(serverRuntime.runPromise);
 
 		if (!accessToken || !user) {
 			return fail(401, {
@@ -119,7 +164,7 @@ export const actions: Actions = {
 
 		return {
 			form,
-			user: auth.data.User
+			user: auth.User
 		};
 	}
 };

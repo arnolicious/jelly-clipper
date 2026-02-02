@@ -50,10 +50,7 @@
 		startTime = Math.max(timelineStart, clipStartSecs);
 		endTime = Math.min(timelineEnd, clipEndSecs);
 
-		timeSegments = Array.from(
-			{ length: Math.ceil(visibleDuration / 10) },
-			(_, i) => timelineStart + i * 10
-		);
+		// timeSegments = Array.from({ length: Math.ceil(visibleDuration / 10) }, (_, i) => timelineStart + i * 10);
 	};
 
 	const onZoomOut = () => {
@@ -74,19 +71,25 @@
 		startTime = Math.max(timelineStart, clipStartSecs);
 		endTime = Math.min(timelineEnd, clipEndSecs);
 
-		timeSegments = Array.from(
-			{ length: Math.ceil(visibleDuration / 10) },
-			(_, i) => timelineStart + i * 10
-		);
+		// timeSegments = Array.from({ length: Math.ceil(visibleDuration / 10) }, (_, i) => timelineStart + i * 10);
 	};
 
-	// Generate time segments every 5 seconds
+	// Generate time segments every 10 seconds - if the media is longer than 2 hours and fully zoomed out, make it every 60 seconds
 	let timeSegments = $derived.by(() => {
-		const segments = [];
-		for (let i = 0; i < fullDurationSecs; i += 10) {
-			segments.push(i);
+		const smallSegmentCount = Math.ceil((timelineEnd - timelineStart) / 10);
+		const mediumSegmentCount = Math.ceil((timelineEnd - timelineStart) / 60);
+		const largeSegmentCount = Math.ceil((timelineEnd - timelineStart) / (60 * 5));
+
+		let finalSegmentCount = smallSegmentCount;
+		if (smallSegmentCount > 600) {
+			finalSegmentCount = mediumSegmentCount;
+
+			if (mediumSegmentCount > 600) {
+				finalSegmentCount = largeSegmentCount;
+			}
 		}
-		return segments;
+
+		return Array.from({ length: finalSegmentCount }, (_, i) => i);
 	});
 
 	let startTime = $state(0);
@@ -168,12 +171,7 @@
 	let touchIsActive = $state(false);
 </script>
 
-<svelte:window
-	onmouseup={onMouseUp}
-	onmousemove={onMouseMove}
-	ontouchend={onTouchEnd}
-	ontouchmove={onTouchMove}
-/>
+<svelte:window onmouseup={onMouseUp} onmousemove={onMouseMove} ontouchend={onTouchEnd} ontouchmove={onTouchMove} />
 
 <div class="flex gap-2 mt-2">
 	<Button variant="outline" onclick={onZoomIn} disabled={visibleDurationPercentage <= 1}>
@@ -185,10 +183,7 @@
 </div>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-	class="flex h-12 relative w-full mb-4 py-1 border-solid border rounded-lg border-primary"
-	bind:this={timelineEl}
->
+<div class="flex h-12 relative w-full mb-4 py-1 border-solid border rounded-lg border-primary" bind:this={timelineEl}>
 	<!-- Time segments -->
 	{#each timeSegments as segment, index (segment)}
 		<div
