@@ -71,8 +71,11 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 					yield* Effect.logDebug(`Found existing file for item ${itemId}, verifying integrity`);
 					let checksPassed = true;
 					const sizeDifference = BigInt(mediaSource.Size) - existingFile.size;
+					// TODO: This doesn't work for files that have been transcoded on-the-fly
+					// as their size will differ from the original media source size.
+					// A better approach would be to store and compare checksums, if available ?
 					// Allow the size to differ by up to 100KB
-					if (sizeDifference > 102400n || sizeDifference < -102400n) {
+					if (sizeDifference > 102400n) {
 						yield* Effect.logWarning(
 							`File size mismatch for item ${itemId}: expected ${mediaSource.Size}, got ${existingFile.size}. Size difference: ${sizeDifference}`
 						);

@@ -70,8 +70,7 @@ export const actions: Actions = {
 		if (Exit.isFailure(authExit)) {
 			const cause = authExit.cause;
 			if (cause._tag === 'Fail' && cause.error._tag === 'JellyfinApiError') {
-				const code = cause.error._tag === 'JellyfinApiError' ? 401 : 500;
-				return fail(code, {
+				return fail(401, {
 					form
 				});
 			}

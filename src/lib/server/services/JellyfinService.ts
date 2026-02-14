@@ -68,7 +68,7 @@ export class AnonymousJellyfinApi extends Context.Tag('AnonymousJellyfinApi')<
 					yield* Effect.logDebug(`Finding Jellyfin server at address: ${address}`);
 					const servers = yield* Effect.tryPromise({
 						try: () => jellyfinSdk.discovery.getRecommendedServerCandidates(address),
-						catch: (error) => JellyfinApiError.make({ message: (error as Error).message })
+						catch: (error) => JellyfinApiError.make({ message: (error as Error).message, cause: error })
 					});
 					yield* Effect.logDebug(`Found ${servers.length} server candidates`);
 					const bestServer = jellyfinSdk.discovery.findBestServer(servers);
@@ -90,7 +90,7 @@ export class AnonymousJellyfinApi extends Context.Tag('AnonymousJellyfinApi')<
 								authenticateUserByName: { Username: username, Pw: password }
 							});
 						},
-						catch: (error) => JellyfinApiError.make({ message: (error as Error).message })
+						catch: (error) => JellyfinApiError.make({ message: (error as Error).message, cause: error })
 					});
 					const parsed = yield* Schema.decodeUnknown(AuthenticationResultSchema)(auth.data, { errors: 'all' });
 					return parsed;
@@ -190,7 +190,7 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 							},
 							{ signal }
 						),
-					catch: (error) => JellyfinApiError.make({ message: (error as Error).message })
+					catch: (error) => JellyfinApiError.make({ message: (error as Error).message, cause: error })
 				});
 				return response.data;
 			});
@@ -238,7 +238,7 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 
 							return track;
 						},
-						catch: (error) => JellyfinApiError.make({ message: (error as Error).message })
+						catch: (error) => JellyfinApiError.make({ message: (error as Error).message, cause: error })
 					})
 				);
 
@@ -273,7 +273,7 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 								}
 							}
 						),
-					catch: (error) => JellyfinApiError.make({ message: (error as Error).message })
+					catch: (error) => JellyfinApiError.make({ message: (error as Error).message, cause: error })
 				});
 
 				const result = Schema.decodeUnknownSync(PlaybackSession)(
@@ -375,7 +375,7 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 								},
 								{ signal }
 							),
-						catch: (error) => JellyfinApiError.make({ message: (error as Error).message })
+						catch: (error) => JellyfinApiError.make({ message: (error as Error).message, cause: error })
 					});
 
 					const result = yield* Schema.decodeUnknown(LatestMediaSchema)({
@@ -409,7 +409,8 @@ export type Track = typeof TrackSchema.Type;
 // export const AuthedJellyfinApiLayer = Layer.provideMerge(JellyfinApi.Default, AnonymousJellyfinApiLayer);
 
 export class JellyfinApiError extends Schema.TaggedError<JellyfinApiError>()('JellyfinApiError', {
-	message: Schema.String
+	message: Schema.String,
+	cause: Schema.Defect
 }) {}
 
 export class JellyfinServerNotFound extends Schema.TaggedError<JellyfinServerNotFound>()('JellyfinServerNotFound', {

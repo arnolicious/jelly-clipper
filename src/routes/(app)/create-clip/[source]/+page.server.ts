@@ -9,6 +9,7 @@ import { DownloadManager } from '$lib/server/services/DownloadManagerService';
 import { InvalidSourceFormatError, JellyfinApi } from '$lib/server/services/JellyfinService';
 import { JellyfinItemIdSchema } from '$lib/shared/JellyfinId';
 import { LibraryService } from '$lib/server/services/LibraryService';
+import type { MediaFormatInfo } from '$lib/shared/MediaFormatInfo';
 
 export type Track = {
 	index: number;
@@ -57,8 +58,20 @@ export const load: PageServerLoad = async (event) =>
 
 			const itemInfo = yield* api.getClipInfo(itemId);
 
-			// Check if we can find the original file on disk
-			yield* libraryService.checkForLocalMediaFile(itemInfo.info).pipe(Effect.catchAll(() => Effect.succeed(null)));
+			// Get media format information to pass to client for compatibility checking
+			let formatInfo: MediaFormatInfo | null = null;
+			const formatResult = yield* libraryService
+				.getMediaFormatInfo(itemInfo.info)
+				.pipe(Effect.catchAll(() => Effect.succeed(null)));
+
+			if (formatResult) {
+				formatInfo = formatResult;
+
+				// If format is compatible, try to symlink it
+				if (!formatResult.requiresDownload) {
+					yield* libraryService.checkForLocalMediaFile(itemInfo.info).pipe(Effect.catchAll(() => Effect.succeed(null)));
+				}
+			}
 
 			// Don't yield* here, we want to run the download and pass the promise back to the client
 			const downloadProgram = pipe(
@@ -81,7 +94,7 @@ export const load: PageServerLoad = async (event) =>
 				}
 			});
 
-			return new OkLoader({ data: { itemInfo: itemInfo.info, download: downloadResult } });
+			return new OkLoader({ data: { itemInfo: itemInfo.info, download: downloadResult, formatInfo } });
 		}).pipe(
 			Effect.provide(makeAuthenticatedRuntimeLayer(event.locals)),
 			Effect.catchTag('BadArgument', (error) => Effect.fail(new BadRequest({ message: error.message }))),
