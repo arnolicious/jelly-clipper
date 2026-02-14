@@ -4,6 +4,7 @@ import { FileSystem } from '@effect/platform';
 import { AssetService } from './AssetService';
 import { AVService, type VideoCodec, type VideoContainer } from './AVService';
 import type { MediaFormatInfo } from '../../shared/MediaFormatInfo';
+import type { AudioCodec } from '$lib/client/codec-support';
 
 export class LibraryService extends Context.Tag('LibraryService')<
 	LibraryService,
@@ -79,7 +80,7 @@ export class LibraryService extends Context.Tag('LibraryService')<
 
 					// Extract audio codec from MediaStreams if available
 					const audioStream = item.MediaStreams?.find((stream) => stream.Type === 'Audio');
-					const audioCodec = audioStream?.Codec?.toLowerCase();
+					const audioCodec = audioStream?.Codec?.toLowerCase() as AudioCodec | undefined;
 
 					const isCompatible =
 						SUPPORTED_CODECS.includes(videoInfo.codec) && SUPPORTED_CONTAINERS.includes(videoInfo.container);
@@ -129,7 +130,7 @@ export class LibraryService extends Context.Tag('LibraryService')<
 
 					// Extract audio codec from MediaStreams if available
 					const audioStream = item.MediaStreams?.find((stream) => stream.Type === 'Audio');
-					const audioCodec = audioStream?.Codec?.toLowerCase();
+					const audioCodec = audioStream?.Codec?.toLowerCase() as AudioCodec | undefined;
 
 					const formatInfo: MediaFormatInfo = {
 						codec: videoInfo.codec,
