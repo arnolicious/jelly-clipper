@@ -9,5 +9,15 @@ services:
       - ./deploy/videos:/app/assets/videos
     restart: unless-stopped
     environment:
-      - JELLY_CLIPPER_ORIGIN=http://localhost:3001
+      # Set log level: debug, info, warn, error
+      # - LOG_LEVEL=warn
+      # Set own custom cron expression for cleanup schedule (default: "30 2 * * *" - every day at 2:30 AM)
+      # - CLEANUP_CRON=30 2 * * *
+      # Set max age for original media to be cleaned up in days (default: 7 days)
+      # - CLEANUP_MAX_AGE_DAYS=7
+      # Full URL with Protocol and Port, where the application will live
+      - JELLY_CLIPPER_ORIGIN=http://localhost:3000
+      # with a reverse proxy it could be something like:
+      # - JELLY_CLIPPER_ORIGIN=https://clip.jellyfin.mydomain.test
+      # Timezone to have the cleanup cron job working as expected
       - TZ=Europe/Berlin

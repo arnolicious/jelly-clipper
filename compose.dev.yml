@@ -1,0 +1,16 @@
+services:
+  jelly-clipper:
+    build: .
+    container_name: jelly-clipper
+    ports:
+      - 3001:3000
+    volumes:
+      - ./deploy/db:/app/db
+      - ./deploy/videos:/app/assets/videos
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=warn
+      - CLEANUP_CRON=* * * * *
+      - CLEANUP_MAX_AGE_DAYS=7
+      - JELLY_CLIPPER_ORIGIN=http://localhost:3001
+      - TZ=Europe/Berlin

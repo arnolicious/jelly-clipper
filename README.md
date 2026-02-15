@@ -27,10 +27,14 @@ Jelly-Clipper is an open-source web application that allows Jellyfin users to ea
 
 This tool takes a very simple approach:
 
-1. Jelly-Clipper downloads the original file from jellyfin
+1. Jelly-Clipper checks if it can find the original file from jellyfin locally at the same path
+
+- If it can **and** if the browser can play it, no download will happen
+- If not Jelly-Clipper downloads the original file (potentially transcoded) from jellyfin
+
 2. The user can create their clip
 3. The clip will be saved indefinitely in their profile and is accessible for other members of the jellyfin instance
-4. The downloaded original files get cleaned up regularly, if they're older than 2 days, to save storage
+4. The downloaded original files get cleaned up regularly, if they're older than 7 (by default) days, to save storage
 
 ## 🚀 Deployment
 
@@ -48,27 +52,40 @@ services:
     volumes:
       # Path to the db directory, in which the sqlite db file will live
       - <MY_DB_PATH>:/app/db
+
       # Path to the videos directory.
       # This will store all the clips permanently and the original files temporarily,
       # so it might get a lil big
       - <MY_VIDEOS_PATH>:/app/assets/videos
+
+      # If jelly-clipper runs on the same server as jellyfin
+      # you can mount the jellyfin media folder into jelly-clipper in the same exact same way it is mounted in jellyfin
+      # This allows jelly-clipper to directly access the media, instead of needing to download it
+      # - /my-media:/media <-- The mounted path must match exactly with the path in jellyfin
     restart: unless-stopped
     environment:
-      # Timezone to have the cleanup cron job working as expected
-      - TZ=Europe/Berlin
+      # Set log level: debug, info, warn, error
+      # - LOG_LEVEL=warn
+      # Set own custom cron expression for cleanup schedule (default: "30 2 * * *" - every day at 2:30 AM)
+      # - CLEANUP_CRON=30 2 * * *
+      # Set max age for original media to be cleaned up in days (default: 7 days)
+      # - CLEANUP_MAX_AGE_DAYS=7
       # Full URL with Protocol and Port, where the application will live
       - JELLY_CLIPPER_ORIGIN=http://localhost:3000
       # with a reverse proxy it could be something like:
       # - JELLY_CLIPPER_ORIGIN=https://clip.jellyfin.mydomain.test
+      # Timezone to have the cleanup cron job working as expected
+      - TZ=Europe/Berlin
 ```
 
 ## 💻 Technologies
 
-- SvelteKit
+- SvelteKits
 - Svelte 5
 - TypeScript
 - Bun
 - Drizzle ORM
+- Effect-TS
 
 ## 🤝 Development
 
@@ -118,6 +135,7 @@ Contributions are welcome! Please check out our [Contribution Guidelines](CONTRI
 - [ ] Improve mobile responsiveness
 
 ## ⭐ Star History
+
 <a href="https://www.star-history.com/#arnolicious/jelly-clipper&Date">
  <picture>
    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=arnolicious/jelly-clipper&type=Date&theme=dark" />

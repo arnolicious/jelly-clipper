@@ -1,5 +1,4 @@
 // https:github.com/sveltejs/kit/discussions/10162#discussioncomment-6188946
-
 import { handler } from './build/handler.js';
 import express from 'express';
 import cron from 'node-cron';
@@ -21,5 +20,5 @@ app.use(handler);
 cron.schedule('30 2 * * *', cleanUpOriginalsFolder, { timezone: process.env.TZ });
 
 app.listen(3000, () => {
-	console.log('listening on port 3000');
+	console.info('Express: listening on port 3000');
 });
