@@ -1,4 +1,4 @@
-import { Layer, Logger, LogLevel, ManagedRuntime } from 'effect';
+import { Layer, ManagedRuntime } from 'effect';
 import { AnonymousJellyfinApi, JellyfinApi } from './JellyfinService';
 import { JellyClipperConfig } from './ConfigService';
 import { ClipService } from './ClipService';
@@ -11,6 +11,7 @@ import { DatabaseService } from './DatabaseService';
 import { FetchHttpClient } from '@effect/platform';
 import { LibraryService } from './LibraryService';
 import { NodeContext } from '@effect/platform-node';
+import { LoggerLayer } from './LoggerLayer';
 
 // User-Agnostic Layers
 const AnonymousJellyfinApiLayer = AnonymousJellyfinApi.Default;
@@ -18,7 +19,6 @@ const AssetServiceLayer = AssetService.NodeLayer;
 const AvServiceLayer = AVService.FfmpegLayer.pipe(Layer.provide(AssetServiceLayer));
 const DatabaseServiceLayer = DatabaseService.Default;
 const ConfigLayer = JellyClipperConfig.Default.pipe(Layer.provide(DatabaseServiceLayer));
-const LoggingLayer = Layer.mergeAll(Logger.pretty, Logger.minimumLogLevel(LogLevel.Debug));
 const DownloadManagerLayer = DownloadManager.Default;
 const LibraryServiceLayer = LibraryService.Default.pipe(
 	Layer.provide(NodeContext.layer),
@@ -32,7 +32,7 @@ export const UserAgnosticLayer = Layer.mergeAll(
 	AnonymousJellyfinApiLayer,
 	LibraryServiceLayer,
 	ConfigLayer
-).pipe(Layer.provide(LoggingLayer), Layer.provideMerge(AvServiceLayer));
+).pipe(Layer.provide(LoggerLayer), Layer.provideMerge(AvServiceLayer));
 
 // Authenticated User Layers
 const AuthedJellyfinApiLayer = JellyfinApi.Default;

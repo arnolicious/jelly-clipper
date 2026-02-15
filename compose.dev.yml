@@ -1,6 +1,5 @@
 services:
   jelly-clipper:
-    # image: arnolicious/jelly-clipper:latest
     build: .
     container_name: jelly-clipper
     ports:
@@ -10,5 +9,8 @@ services:
       - ./deploy/videos:/app/assets/videos
     restart: unless-stopped
     environment:
+      - LOG_LEVEL=warn
+      - CLEANUP_CRON=* * * * *
+      - CLEANUP_MAX_AGE_DAYS=7
       - JELLY_CLIPPER_ORIGIN=http://localhost:3001
       - TZ=Europe/Berlin

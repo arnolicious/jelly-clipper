@@ -29,12 +29,12 @@ This tool takes a very simple approach:
 
 1. Jelly-Clipper checks if it can find the original file from jellyfin locally at the same path
 
-- If it can **and** if it is mp4 - h264, no download will happen
-- If not Jelly-Clipper downloads the original file (transcoded) from jellyfin
+- If it can **and** if the browser can play it, no download will happen
+- If not Jelly-Clipper downloads the original file (potentially transcoded) from jellyfin
 
 2. The user can create their clip
 3. The clip will be saved indefinitely in their profile and is accessible for other members of the jellyfin instance
-4. The downloaded original files get cleaned up regularly, if they're older than 2 days, to save storage
+4. The downloaded original files get cleaned up regularly, if they're older than 7 (by default) days, to save storage
 
 ## 🚀 Deployment
 
@@ -64,13 +64,20 @@ services:
       # - /my-media:/media <-- The mounted path must match exactly with the path in jellyfin
     restart: unless-stopped
     environment:
-      # Timezone to have the cleanup cron job working as expected
-      - TZ=Europe/Berlin
+      # Set log level: debug, info, warn, error
+      # - LOG_LEVEL=warn
+      # Set own custom cron expression for cleanup schedule (default: "30 2 * * *" - every day at 2:30 AM)
+      # - CLEANUP_CRON=30 2 * * *
+      # Set max age for original media to be cleaned up in days (default: 7 days)
+      # - CLEANUP_MAX_AGE_DAYS=7
       # Full URL with Protocol and Port, where the application will live
       - JELLY_CLIPPER_ORIGIN=http://localhost:3000
       # with a reverse proxy it could be something like:
       # - JELLY_CLIPPER_ORIGIN=https://clip.jellyfin.mydomain.test
+      # Timezone to have the cleanup cron job working as expected
+      - TZ=Europe/Berlin
 ```
+
 
 ## 💻 Technologies
 

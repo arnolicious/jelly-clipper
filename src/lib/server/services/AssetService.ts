@@ -1,10 +1,11 @@
-import { Effect, Context, Layer, Schema, Stream } from 'effect';
+import { Effect, Context, Layer, Schema, Stream, DateTime, Duration } from 'effect';
 import { FileSystem, Path } from '@effect/platform';
 import { PlatformError } from '@effect/platform/Error';
 import { NodeContext } from '@effect/platform-node';
 import { BunContext } from '@effect/platform-bun';
 import type { SrtStringContent } from './CreateClipService';
-import { BigIntFileSize, FileInfoSchema, type FileInfo } from '$lib/shared/FileSizes';
+import { BigIntFileSize, FileInfoSchema, type FileInfo } from '../../shared/FileSizes.ts';
+import { distanceDuration } from 'effect/DateTime';
 
 export const ASSET_ROOT_DIR = 'assets';
 
@@ -28,6 +29,7 @@ export class AssetService extends Context.Tag('AssetService')<
 			itemId: string,
 			stream: Stream.Stream<Uint8Array<ArrayBufferLike>>
 		) => Effect.Effect<FileInfo, WriteStreamFailed | PlatformError>;
+		cleanupOriginalsDirectory: (maxAge: Duration.DurationInput) => Effect.Effect<void>;
 	}
 >() {
 	private static Default = Layer.effect(
@@ -79,6 +81,39 @@ export class AssetService extends Context.Tag('AssetService')<
 				});
 			});
 
+			const cleanupOriginalsDirectory = Effect.fn('AssetService.cleanupOriginalsDirectory')(
+				function* (maxAge: Duration.DurationInput) {
+					yield* Effect.logInfo('Cleaning up originals folder');
+					yield* Effect.logDebug(`Checking contents of ${ASSETS_ORIGINALS_DIR} for cleanup`);
+
+					const files = yield* fs.readDirectory(ASSETS_ORIGINALS_DIR);
+					const now = yield* DateTime.now;
+
+					let filesDeleted = 0;
+					let filesSkipped = 0;
+
+					for (const file of files) {
+						const filePath = `${ASSETS_ORIGINALS_DIR}/${file}`;
+						const stats = yield* fs.stat(filePath);
+						if (stats.mtime._tag === 'None') {
+							yield* Effect.logWarning(`Could not get mtime for ${filePath}, skipping`);
+							filesSkipped++;
+							break;
+						}
+						const fileAge = distanceDuration(DateTime.unsafeFromDate(stats.mtime.value), now);
+						if (fileAge > maxAge) {
+							yield* Effect.logInfo(`Deleting ${filePath}`);
+							yield* fs.remove(filePath);
+							filesDeleted++;
+						} else {
+							filesSkipped++;
+						}
+					}
+					yield* Effect.logInfo(`Deleted ${filesDeleted} files, skipped ${filesSkipped} files`);
+				},
+				Effect.catchAll((e) => Effect.logError(`Error cleaning up originals folder: ${String(e)}`))
+			);
+
 			return AssetService.of({
 				ensureAssetDirectoriesExist,
 				ROOT_DIR: ASSETS_VIDEOS_ROOT_DIR,
@@ -99,7 +134,8 @@ export class AssetService extends Context.Tag('AssetService')<
 					const targetPath = path.join(ASSETS_CLIPS_DIR, `${clipId}.srt`);
 					yield* fs.writeFileString(targetPath, content);
 					return targetPath;
-				})
+				}),
+				cleanupOriginalsDirectory
 			});
 		})
 	);
