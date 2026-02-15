@@ -83,8 +83,8 @@ export class AssetService extends Context.Tag('AssetService')<
 
 			const cleanupOriginalsDirectory = Effect.fn('AssetService.cleanupOriginalsDirectory')(
 				function* (maxAge: Duration.DurationInput) {
-					yield* Effect.logInfo('Cleaning up originals folder');
-					yield* Effect.logDebug(`Checking contents of ${ASSETS_ORIGINALS_DIR} for cleanup`);
+					yield* Effect.logInfo('🧹 Cleaning up originals folder');
+					yield* Effect.logDebug(`🧹 Checking contents of ${ASSETS_ORIGINALS_DIR} for cleanup`);
 
 					const files = yield* fs.readDirectory(ASSETS_ORIGINALS_DIR);
 					const now = yield* DateTime.now;
@@ -96,20 +96,20 @@ export class AssetService extends Context.Tag('AssetService')<
 						const filePath = `${ASSETS_ORIGINALS_DIR}/${file}`;
 						const stats = yield* fs.stat(filePath);
 						if (stats.mtime._tag === 'None') {
-							yield* Effect.logWarning(`Could not get mtime for ${filePath}, skipping`);
+							yield* Effect.logWarning(`🧹 Could not get mtime for ${filePath}, skipping`);
 							filesSkipped++;
 							break;
 						}
 						const fileAge = distanceDuration(DateTime.unsafeFromDate(stats.mtime.value), now);
 						if (fileAge > maxAge) {
-							yield* Effect.logInfo(`Deleting ${filePath}`);
+							yield* Effect.logInfo(`🧹 Deleting ${filePath}`);
 							yield* fs.remove(filePath);
 							filesDeleted++;
 						} else {
 							filesSkipped++;
 						}
 					}
-					yield* Effect.logInfo(`Deleted ${filesDeleted} files, skipped ${filesSkipped} files`);
+					yield* Effect.logInfo(`🧹 Deleted ${filesDeleted} files, skipped ${filesSkipped} files`);
 				},
 				Effect.catchAll((e) => Effect.logError(`Error cleaning up originals folder: ${String(e)}`))
 			);
