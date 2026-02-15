@@ -78,7 +78,6 @@ services:
       - TZ=Europe/Berlin
 ```
 
-
 ## 💻 Technologies
 
 - SvelteKits
