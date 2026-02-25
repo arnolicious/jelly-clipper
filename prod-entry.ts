@@ -5,6 +5,7 @@ import { NodeRuntime } from '@effect/platform-node';
 import { Config, Cron, DateTime, Duration, Effect, Either, Schedule } from 'effect';
 import { AssetService } from './src/lib/server/services/AssetService.ts';
 import { LoggerLayer } from './src/lib/server/services/LoggerLayer.ts';
+import { authMiddleware } from './src/lib/server/express-auth-middleware.ts';
 
 const assetsPath = './assets';
 
@@ -39,6 +40,9 @@ const main = Effect.gen(function* () {
 	);
 
 	const app = express();
+
+	// Protect static asset routes with session auth
+	app.use(authMiddleware);
 
 	// Serve your "assets" folder
 	app.use(express.static(assetsPath));
