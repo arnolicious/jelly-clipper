@@ -5,6 +5,65 @@ import { NodeRuntime } from '@effect/platform-node';
 import { Config, Cron, DateTime, Duration, Effect, Either, Schedule } from 'effect';
 import { AssetService } from './src/lib/server/services/AssetService.ts';
 import { LoggerLayer } from './src/lib/server/services/LoggerLayer.ts';
+import { drizzle } from 'drizzle-orm/libsql';
+import { createClient } from '@libsql/client';
+import { eq, and, gte } from 'drizzle-orm';
+import * as schema from './src/lib/server/db/schema.ts';
+
+// Self-contained DB client for auth middleware, using process.env directly
+// to avoid importing $env/dynamic/private which only works inside SvelteKit
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
+
+const authDbClient = createClient({ url: `file:${DATABASE_URL}` });
+const authDb = drizzle(authDbClient, { schema });
+
+const SESSION_EXPIRY = 1000 * 60 * 60 * 24 * 7 * 4; // 4 weeks
+
+function getSessionIdFromCookieHeader(cookieHeader: string | undefined): string | undefined {
+	if (!cookieHeader) return undefined;
+	const match = cookieHeader.match(/(?:^|;\s*)sessionid=([^;]*)/);
+	return match?.[1];
+}
+
+const authMiddleware: express.RequestHandler = async (req, res, next) => {
+	// Only protect /videos/ routes
+	if (!req.path.startsWith('/videos/')) {
+		return next();
+	}
+
+	const sessionId = getSessionIdFromCookieHeader(req.headers.cookie);
+
+	if (!sessionId) {
+		res.status(401).send('Unauthorized');
+		return;
+	}
+
+	const session = await authDb.query.sessions
+		.findFirst({
+			where: and(
+				eq(schema.sessions.sessionId, sessionId),
+				gte(schema.sessions.createdAt, new Date(Date.now() - SESSION_EXPIRY))
+			)
+		})
+		.execute();
+
+	if (!session) {
+		res.status(401).send('Unauthorized');
+		return;
+	}
+
+	const user = await authDb.query.users.findFirst({
+		where: eq(schema.users.jellyfinUserId, session.userId)
+	});
+
+	if (!user) {
+		res.status(401).send('Unauthorized');
+		return;
+	}
+
+	next();
+};
 
 const assetsPath = './assets';
 
@@ -39,6 +98,9 @@ const main = Effect.gen(function* () {
 	);
 
 	const app = express();
+
+	// Protect static asset routes with session auth
+	app.use(authMiddleware);
 
 	// Serve your "assets" folder
 	app.use(express.static(assetsPath));
