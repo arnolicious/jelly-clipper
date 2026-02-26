@@ -368,7 +368,6 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 									sortOrder: ['Descending'],
 									userId: user.id,
 									recursive: true,
-									parentId: 'a656b907eb3a73532e40e44b968d0225',
 									limit: 5,
 									excludeItemTypes: ['CollectionFolder'],
 									includeItemTypes: ['Episode', 'Movie']
