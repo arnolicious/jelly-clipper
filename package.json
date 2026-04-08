@@ -32,7 +32,7 @@
 		"bits-ui": "^1.8.0",
 		"clsx": "^2.1.1",
 		"dotenv": "^17.2.3",
-		"drizzle-kit": "^0.31.8",
+		"drizzle-kit": "^0.31.10",
 		"eslint": "^9.39.3",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.13.1",
