@@ -67,8 +67,8 @@ importers:
         version: 4.0.16(@types/node@25.0.0)(jiti@1.21.7)(yaml@2.8.2)
     devDependencies:
       '@effect/language-service':
-        specifier: ^0.62.1
-        version: 0.62.1
+        specifier: ^0.85.1
+        version: 0.85.1
       '@eslint/js':
         specifier: ^9.39.3
         version: 9.39.3
@@ -207,8 +207,8 @@ packages:
       lmdb:
         optional: true
 
-  '@effect/language-service@0.62.1':
-    resolution: {integrity: sha512-K78mPtNpHqArLTXpYNASoqiqYUmPASrdnntSBVInMYmI39hyLkmTqk78bclzkfsIvJZBBS4vvsuWx7Etmz8rkA==}
+  '@effect/language-service@0.85.1':
+    resolution: {integrity: sha512-EXnJjIy6zQ3nUO/MZ+ynWUb8B895KZPotd1++oTs9JjDkplwM7cb6zo8Zq2zU6piwq+KflO7amXbEfj1UMpHkw==}
     hasBin: true
 
   '@effect/platform-bun@0.86.0':
@@ -3108,7 +3108,7 @@ snapshots:
       effect: 3.19.12
       uuid: 11.1.0
 
-  '@effect/language-service@0.62.1': {}
+  '@effect/language-service@0.85.1': {}
 
   '@effect/platform-bun@0.86.0(@effect/cluster@0.55.0(@effect/platform@0.93.8(effect@3.19.12))(@effect/rpc@0.72.2(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(@effect/sql@0.48.6(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(@effect/workflow@0.15.2(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(@effect/platform@0.93.8(effect@3.19.12))(@effect/rpc@0.72.2(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(effect@3.19.12))(effect@3.19.12))(@effect/platform@0.93.8(effect@3.19.12))(@effect/rpc@0.72.2(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(@effect/sql@0.48.6(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(@effect/platform@0.93.8(effect@3.19.12))(effect@3.19.12))(effect@3.19.12)':
     dependencies:

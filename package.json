@@ -22,7 +22,7 @@
 		"db:studio": "drizzle-kit studio"
 	},
 	"devDependencies": {
-		"@effect/language-service": "^0.62.1",
+		"@effect/language-service": "^0.85.1",
 		"@eslint/js": "^9.39.3",
 		"@sveltejs/adapter-node": "^5.4.0",
 		"@sveltejs/kit": "^2.49.2",
