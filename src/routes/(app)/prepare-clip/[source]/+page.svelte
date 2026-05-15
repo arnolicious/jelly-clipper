@@ -36,10 +36,10 @@
 	let isNavigating = $derived(!!navigating.to);
 </script>
 
-<main class="flex flex-col h-full w-1/2 items-center justify-evenly gap-4">
+<main class="flex flex-col h-full w-full md:w-1/2 items-center justify-evenly gap-4">
 	<h3 class="text-lg text-center">Please select which audio track you want to use</h3>
-	<div class="flex flex-row gap-4">
-		<div class="flex flex-col gap-2">
+	<div class="flex flex-row gap-4 w-full md:w-auto">
+		<div class="flex flex-col gap-2 w-full md:w-auto">
 			<Label>Audio track</Label>
 			<Select.Root
 				bind:value={
@@ -49,7 +49,7 @@
 				items={audioTrackItems}
 				type="single"
 			>
-				<Select.Trigger class="min-w-[400px] gap-2">
+				<Select.Trigger class="w-full md:min-w-[400px] gap-2">
 					{selectedAudioTrack?.label ?? 'Select Audio Track'}
 				</Select.Trigger>
 				<Select.Content>
@@ -63,7 +63,7 @@
 		</div>
 	</div>
 
-	<Button class="w-1/2" data-sveltekit-preload-data="off" disabled={isNavigating} href={createClipUrl}>
+	<Button class="w-full md:w-1/2" data-sveltekit-preload-data="off" disabled={isNavigating} href={createClipUrl}>
 		{#if isNavigating}
 			Loading...
 		{:else}
