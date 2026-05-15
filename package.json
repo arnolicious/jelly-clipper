@@ -24,7 +24,7 @@
 	"devDependencies": {
 		"@effect/language-service": "^0.86.0",
 		"@eslint/js": "^9.39.4",
-		"@sveltejs/adapter-node": "^5.4.0",
+		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/kit": "^2.49.2",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@typescript/native-preview": "7.0.0-dev.20260512.1",
