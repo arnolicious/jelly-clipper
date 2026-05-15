@@ -17,6 +17,7 @@ import { MediaSourceSchema, type MediaSource } from '$lib/shared/MediaSource';
 import { BaseItemDtoSchema } from '$lib/shared/BaseItemDto';
 import { MediaStreamSchema } from '$lib/shared/MediaStream';
 import { LatestMediaSchema, type LatestMedia } from '$lib/shared/LatestMediaSchema';
+import { buildPreviewStreamUrl } from './jellyfin-preview-url';
 
 type JellyfinSdkApi = ReturnType<Jellyfin['createApi']>;
 
@@ -136,6 +137,12 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 			DatabaseError | JellyClipperNotConfiguredError | JellyfinApiError | NoCurrentUserError | ParseError
 		>;
 		getDownloadStreamUrl: (
+			params: GetDownloadStreamParams
+		) => Effect.Effect<
+			string,
+			DatabaseError | JellyClipperNotConfiguredError | JellyfinApiError | NoCurrentUserError | ParseError
+		>;
+		getStreamPreviewUrl: (
 			params: GetDownloadStreamParams
 		) => Effect.Effect<
 			string,
@@ -327,6 +334,31 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 				return directPlayUrl;
 			});
 
+			const getStreamPreviewUrl = Effect.fn('JellyfinApi.getStreamPreviewUrl')(function* (
+				params: GetDownloadStreamParams
+			) {
+				const { itemId, mediaSourceId, audioStreamIndex, subtitleStreamIndex } = params;
+				const user = yield* currentUser.getCurrentUser();
+				const { api } = yield* getJellyfinApi();
+				const { mediaSource, sessionId } = yield* createPlaybackSession({
+					itemId,
+					mediaSourceId,
+					audioStreamIndex,
+					subtitleStreamIndex
+				});
+				return buildPreviewStreamUrl({
+					basePath: api.basePath,
+					itemId,
+					mediaSourceId: mediaSource?.Id ?? mediaSourceId,
+					playSessionId: sessionId,
+					apiKey: api.accessToken,
+					deviceId: api.deviceInfo.id,
+					userId: user.id,
+					audioStreamIndex,
+					subtitleStreamIndex
+				});
+			});
+
 			const getClipInfo = Effect.fn('MediaInfoService.getClipInfo')(function* (sourceId: string) {
 				const info = yield* getItemInfo(sourceId);
 				const mediaSource = info?.MediaSources?.[0];
@@ -355,6 +387,7 @@ export class JellyfinApi extends Context.Tag('JellyfinApi')<
 				getSubtitleTracks,
 				createPlaybackSession,
 				getDownloadStreamUrl,
+				getStreamPreviewUrl,
 				getClipInfo,
 				getLatestWatchedMedia: Effect.fn('JellyfinApi.getLatestWatchedMedia')(function* () {
 					const user = yield* currentUser.getCurrentUser();
