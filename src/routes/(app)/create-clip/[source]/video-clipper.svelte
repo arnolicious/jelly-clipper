@@ -192,7 +192,7 @@
 		items={subtitleItems}
 		type="single"
 	>
-		<Select.Trigger class="w-[400px]">
+		<Select.Trigger class="w-full md:w-[400px]">
 			{selectedSubtitleTrackItem?.label ?? 'Select Subtitle Track'}
 		</Select.Trigger>
 		<Select.Content>

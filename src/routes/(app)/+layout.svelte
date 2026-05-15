@@ -15,7 +15,7 @@
 	let { children, data }: Props = $props();
 </script>
 
-<Card.Root class="flex-1 flex flex-col h-full">
+<Card.Root class="flex-1 flex flex-col h-full w-full max-w-full overflow-hidden">
 	<Card.Header class="flex flex-row gap-2 items-center justify-between relative pt-3">
 		<Button variant="ghost" href="/my-clips" class="py-8 flex flex-row gap-2 items-center justify-between">
 			<Avatar.Root>
@@ -41,7 +41,9 @@
 		{/if}
 	</Card.Header>
 	<Separator class="mt-3" />
-	<Card.Content class="flex flex-col justify-evenly items-center h-full overflow-auto">
+	<Card.Content
+		class="flex flex-col justify-evenly items-center h-full w-full max-w-full overflow-y-auto overflow-x-hidden"
+	>
 		{@render children()}
 	</Card.Content>
 </Card.Root>

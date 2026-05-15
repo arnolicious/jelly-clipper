@@ -131,16 +131,16 @@
 		</div>
 	</Card.Content>
 	<Card.Footer>
-		<div class="w-full flex justify-between">
+		<div class="w-full flex flex-col md:flex-row gap-2 md:gap-0 md:justify-between">
 			{#if clip.userId !== currentUser.jellyfinUserId}
 				<Button variant="destructive" onclick={() => deleteConfirmation?.withConfirmation(() => onDeleteClip())}>
 					<i class="text-xl ph ph-trash"></i>
 					Delete Clip
 				</Button>
 			{:else}
-				<div></div>
+				<div class="hidden md:block"></div>
 			{/if}
-			<div class="flex gap-2">
+			<div class="flex flex-wrap gap-2">
 				<Button variant="outline" onclick={onCopyUrl}>
 					<i class="text-xl ph ph-copy-simple"></i>
 					Copy Link
