@@ -19,7 +19,7 @@ importers:
         version: 0.103.0(@effect/cluster@0.55.0(@effect/platform@0.93.8(effect@3.20.0))(@effect/rpc@0.72.2(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(@effect/sql@0.48.6(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(@effect/workflow@0.15.2(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(@effect/platform@0.93.8(effect@3.20.0))(@effect/rpc@0.72.2(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(effect@3.20.0))(effect@3.20.0))(@effect/platform@0.93.8(effect@3.20.0))(@effect/rpc@0.72.2(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(@effect/sql@0.48.6(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(effect@3.20.0)
       '@effect/sql-drizzle':
         specifier: ^0.47.0
-        version: 0.47.0(@effect/sql@0.48.6(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(drizzle-orm@0.45.1(@libsql/client@0.15.15))(effect@3.20.0)
+        version: 0.47.0(@effect/sql@0.48.6(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(drizzle-orm@0.45.2(@libsql/client@0.15.15))(effect@3.20.0)
       '@effect/vitest':
         specifier: ^0.27.0
         version: 0.27.0(effect@3.20.0)(vitest@4.0.16(@types/node@25.0.0)(jiti@1.21.7))
@@ -43,7 +43,7 @@ importers:
         version: 4.1.0
       drizzle-orm:
         specifier: ^0.45.1
-        version: 0.45.1(@libsql/client@0.15.15)
+        version: 0.45.2(@libsql/client@0.15.15)
       effect:
         specifier: ^3.19.12
         version: 3.20.0
@@ -1593,8 +1593,8 @@ packages:
     resolution: {integrity: sha512-O9EC/miwdnRDY10qRxM8P3Pg8hXe3LyU4ZipReKOgTwn4OqANmftj8XJz1UPUAS6NMHf0E2htjsbQujUTkncCg==}
     hasBin: true
 
-  drizzle-orm@0.45.1:
-    resolution: {integrity: sha512-Te0FOdKIistGNPMq2jscdqngBRfBpC8uMFVwqjf6gtTVJHIQ/dosgV/CLBU2N4ZJBsXL5savCba9b0YJskKdcA==}
+  drizzle-orm@0.45.2:
+    resolution: {integrity: sha512-kY0BSaTNYWnoDMVoyY8uxmyHjpJW1geOmBMdSSicKo9CIIWkSxMIj2rkeSR51b8KAPB7m+qysjuHme5nKP+E5Q==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
       '@cloudflare/workers-types': '>=4'
@@ -3108,10 +3108,10 @@ snapshots:
       effect: 3.20.0
       msgpackr: 1.11.12
 
-  '@effect/sql-drizzle@0.47.0(@effect/sql@0.48.6(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(drizzle-orm@0.45.1(@libsql/client@0.15.15))(effect@3.20.0)':
+  '@effect/sql-drizzle@0.47.0(@effect/sql@0.48.6(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(drizzle-orm@0.45.2(@libsql/client@0.15.15))(effect@3.20.0)':
     dependencies:
       '@effect/sql': 0.48.6(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0)
-      drizzle-orm: 0.45.1(@libsql/client@0.15.15)
+      drizzle-orm: 0.45.2(@libsql/client@0.15.15)
       effect: 3.20.0
 
   '@effect/sql@0.48.6(@effect/experimental@0.57.11(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0))(@effect/platform@0.93.8(effect@3.20.0))(effect@3.20.0)':
@@ -4268,7 +4268,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.45.1(@libsql/client@0.15.15):
+  drizzle-orm@0.45.2(@libsql/client@0.15.15):
     optionalDependencies:
       '@libsql/client': 0.15.15
 
