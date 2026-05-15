@@ -64,12 +64,25 @@ export const load: PageServerLoad = async (event) =>
 				.getMediaFormatInfo(itemInfo.info)
 				.pipe(Effect.catchAll(() => Effect.succeed(null)));
 
+			let previewUrl: string | undefined;
+
 			if (formatResult) {
 				formatInfo = formatResult;
 
-				// If format is compatible, try to symlink it
-				if (!formatResult.requiresDownload) {
-					yield* libraryService.checkForLocalMediaFile(itemInfo.info).pipe(Effect.catchAll(() => Effect.succeed(null)));
+				// Symlink any local source
+				const symlinkResult = yield* libraryService.checkForLocalMediaFile(itemInfo.info).pipe(Effect.either);
+				const symlinked = symlinkResult._tag === 'Right';
+
+				// Browser can't decode the source iso give the player a Jellyfin HLS transcode URL
+				if (symlinked && formatResult.requiresDownload) {
+					const mediaSource = itemInfo.info.MediaSources?.[0];
+					if (mediaSource?.Id) {
+						previewUrl = yield* api.getStreamPreviewUrl({
+							itemId: itemInfo.info.Id,
+							mediaSourceId: mediaSource.Id,
+							audioStreamIndex: audioStreamIndex !== null ? audioStreamIndex : undefined
+						});
+					}
 				}
 			}
 
@@ -94,7 +107,7 @@ export const load: PageServerLoad = async (event) =>
 				}
 			});
 
-			return new OkLoader({ data: { itemInfo: itemInfo.info, download: downloadResult, formatInfo } });
+			return new OkLoader({ data: { itemInfo: itemInfo.info, download: downloadResult, formatInfo, previewUrl } });
 		}).pipe(
 			Effect.provide(makeAuthenticatedRuntimeLayer(event.locals)),
 			Effect.catchTag('BadArgument', (error) => Effect.fail(new BadRequest({ message: error.message }))),
