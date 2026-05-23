@@ -27,9 +27,10 @@
 		sourceId: string;
 		sourceInfo: BaseItemDto | OriginalBaseItemDto;
 		subtitleTracks?: ReadonlyArray<Track> | OldTrack[];
+		previewUrl?: string;
 	};
 
-	let { sourceId, sourceInfo, subtitleTracks }: Props = $props();
+	let { sourceId, sourceInfo, subtitleTracks, previewUrl }: Props = $props();
 
 	let player: MediaPlayerElement | null = $state(null);
 	const remoteControl = new MediaRemoteControl();
@@ -234,7 +235,11 @@
 		>
 			<div bind:this={triggerEl} style="visibility: none;"></div>
 			<media-provider>
-				<source src="/videos/originals/{sourceId}.mp4" type="video/mp4" />
+				{#if previewUrl}
+					<source src={previewUrl} type="application/x-mpegURL" />
+				{:else}
+					<source src="/videos/originals/{sourceId}.mp4" type="video/mp4" />
+				{/if}
 			</media-provider>
 			<media-video-layout></media-video-layout>
 		</media-player>

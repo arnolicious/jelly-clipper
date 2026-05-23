@@ -17,9 +17,9 @@ export class LibraryService extends Context.Tag('LibraryService')<
 		 */
 		getMediaFormatInfo: (item: BaseItemDto) => Effect.Effect<MediaFormatInfo, ItemFileNotFound>;
 		/**
-		 * Checks if the original media file for the given item is available locally and in a widely compatible format.
-		 * If so, it symlinks the file to the originals directory for use in clipping.
-		 * Returns format information regardless of compatibility.
+		 * Symlinks the item's local source file into the originals directory, regardless
+		 * of codec. Browser playback for incompatible codecs is handled separately via
+		 * a Jellyfin live-transcoded HLS URL.
 		 */
 		checkForLocalMediaFile: (
 			item: BaseItemDto
@@ -141,16 +141,7 @@ export class LibraryService extends Context.Tag('LibraryService')<
 							!SUPPORTED_CODECS.includes(videoInfo.codec) || !SUPPORTED_CONTAINERS.includes(videoInfo.container)
 					};
 
-					if (!SUPPORTED_CODECS.includes(videoInfo.codec) || !SUPPORTED_CONTAINERS.includes(videoInfo.container)) {
-						yield* Effect.logWarning(
-							`Media file at path: ${jellyfinItemPath} has incompatible codec/container: ${videoInfo.codec}/${videoInfo.container}`
-						);
-						return yield* new ItemFileNotFound({
-							message: `Media file has incompatible codec/container: ${videoInfo.codec}/${videoInfo.container}`
-						});
-					}
-
-					// If the file exists, we symlink it to our originals directory
+					// Symlink unconditionally; cut uses server-side ffmpeg which handles any codec.
 					yield* fs.symlink(jellyfinItemPath, `${assetService.ORIGINALS_DIR}/${item.Id}.mp4`).pipe(
 						Effect.catchAll((error) =>
 							Effect.fail(

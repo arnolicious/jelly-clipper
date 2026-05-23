@@ -33,13 +33,15 @@
 
 			const compatible = isFormatCompatible(codec, container, audioCodec);
 
-			needsDownload = !compatible;
+			needsDownload = !compatible && !data.previewUrl;
 			isCheckingCompatibility = false;
 
 			if (compatible) {
 				compatibilityMessage = `Using local file (${codec}/${container})`;
+			} else if (data.previewUrl) {
+				compatibilityMessage = `Source is ${codec}/${container} - scrubbing live transcode, cut from local source`;
 			} else {
-				compatibilityMessage = `Format not compatible (${codec}/${container}). Downloading transcoded version...`;
+				compatibilityMessage = `Format not compatible (${codec}/${container}). Downloading...`;
 			}
 		} else {
 			// No format info or file not available locally, need to download
@@ -96,9 +98,14 @@
 		{#await data.download then resultExit}
 			{#if 'fileInfo' in resultExit}
 				{@const { fileInfo, subtitleTracks } = resultExit}
-				<VideoClipper sourceId={fileInfo.name} sourceInfo={data.itemInfo} {subtitleTracks} />
+				<VideoClipper
+					sourceId={fileInfo.name}
+					sourceInfo={data.itemInfo}
+					{subtitleTracks}
+					previewUrl={data.previewUrl}
+				/>
 			{:else}
-				<VideoClipper sourceId={data.itemInfo.Id} sourceInfo={data.itemInfo} />
+				<VideoClipper sourceId={data.itemInfo.Id} sourceInfo={data.itemInfo} previewUrl={data.previewUrl} />
 			{/if}
 		{/await}
 	</div>

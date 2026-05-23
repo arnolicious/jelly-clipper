@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { Effect, pipe, Schema } from 'effect';
-import { DownloadMediaService } from '$lib/server/services/DownloadMediaService';
+import { DownloadMediaService, type DownloadResult } from '$lib/server/services/DownloadMediaService';
+import { BigIntFileSize } from '$lib/shared/FileSizes';
 import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/UserSession';
 import { AssetService } from '$lib/server/services/AssetService';
 import { runLoader } from '$lib/server/load-utils';
@@ -64,37 +65,61 @@ export const load: PageServerLoad = async (event) =>
 				.getMediaFormatInfo(itemInfo.info)
 				.pipe(Effect.catchAll(() => Effect.succeed(null)));
 
+			let previewUrl: string | undefined;
+			let symlinked = false;
+
 			if (formatResult) {
 				formatInfo = formatResult;
 
-				// If format is compatible, try to symlink it
-				if (!formatResult.requiresDownload) {
-					yield* libraryService.checkForLocalMediaFile(itemInfo.info).pipe(Effect.catchAll(() => Effect.succeed(null)));
+				// Symlink any local source
+				const symlinkResult = yield* libraryService.checkForLocalMediaFile(itemInfo.info).pipe(Effect.either);
+				symlinked = symlinkResult._tag === 'Right';
+
+				// Browser can't decode the source iso give the player a Jellyfin HLS transcode URL
+				if (symlinked && formatResult.requiresDownload) {
+					const mediaSource = itemInfo.info.MediaSources?.[0];
+					if (mediaSource?.Id) {
+						previewUrl = yield* api.getStreamPreviewUrl({
+							itemId: itemInfo.info.Id,
+							mediaSourceId: mediaSource.Id,
+							audioStreamIndex: audioStreamIndex !== null ? audioStreamIndex : undefined
+						});
+					}
 				}
 			}
 
-			// Don't yield* here, we want to run the download and pass the promise back to the client
-			const downloadProgram = pipe(
-				downloadEffect(itemInfo.info.Id, audioStreamIndex),
-				Effect.withLogSpan('create-clip.downloadEffect'),
-				Effect.provide(makeAuthenticatedRuntimeLayer(event.locals))
-			);
+			// Skip the download when symlinked: cut reads the source via the symlink,
+			// preview reads it via previewUrl (incompatible codec) or directly (compatible).
+			let downloadResult: Promise<DownloadResult | { errorMessage: string }>;
+			if (symlinked) {
+				downloadResult = Promise.resolve({
+					fileInfo: { name: itemInfo.info.Id, extension: 'mp4', size: BigIntFileSize.make(0n) },
+					subtitleTracks: []
+				});
+			} else {
+				// Don't yield* here, we want to run the download and pass the promise back to the client
+				const downloadProgram = pipe(
+					downloadEffect(itemInfo.info.Id, audioStreamIndex),
+					Effect.withLogSpan('create-clip.downloadEffect'),
+					Effect.provide(makeAuthenticatedRuntimeLayer(event.locals))
+				);
 
-			yield* Effect.logDebug(`Forking download fiber for item ${itemInfo.info.Id}`);
-			const downloadFiber = yield* fiberManager.startDownloadFiber(itemInfo.info.Id, downloadProgram);
-			yield* Effect.logDebug(`Returning download promise for item ${itemInfo.info.Id}`, downloadFiber.id());
-			const downloadResult = Effect.runPromiseExit(downloadFiber).then((exit) => {
-				if (exit._tag === 'Success') {
-					return exit.value;
-				} else {
-					if (exit.cause._tag === 'Fail') {
-						return { errorMessage: `${exit.cause.error._tag}: ${exit.cause.error.message}` };
+				yield* Effect.logDebug(`Forking download fiber for item ${itemInfo.info.Id}`);
+				const downloadFiber = yield* fiberManager.startDownloadFiber(itemInfo.info.Id, downloadProgram);
+				yield* Effect.logDebug(`Returning download promise for item ${itemInfo.info.Id}`, downloadFiber.id());
+				downloadResult = Effect.runPromiseExit(downloadFiber).then((exit) => {
+					if (exit._tag === 'Success') {
+						return exit.value;
+					} else {
+						if (exit.cause._tag === 'Fail') {
+							return { errorMessage: `${exit.cause.error._tag}: ${exit.cause.error.message}` };
+						}
+						return { errorMessage: `An unexpected error occurred: ${exit.cause.toString()}` };
 					}
-					return { errorMessage: `An unexpected error occurred: ${exit.cause.toString()}` };
-				}
-			});
+				});
+			}
 
-			return new OkLoader({ data: { itemInfo: itemInfo.info, download: downloadResult, formatInfo } });
+			return new OkLoader({ data: { itemInfo: itemInfo.info, download: downloadResult, formatInfo, previewUrl } });
 		}).pipe(
 			Effect.provide(makeAuthenticatedRuntimeLayer(event.locals)),
 			Effect.catchTag('BadArgument', (error) => Effect.fail(new BadRequest({ message: error.message }))),
