@@ -25,7 +25,7 @@
 		"@effect/language-service": "^0.86.1",
 		"@eslint/js": "^9.39.4",
 		"@sveltejs/adapter-node": "^5.5.4",
-		"@sveltejs/kit": "^2.49.2",
+		"@sveltejs/kit": "^2.60.1",
 		"@sveltejs/vite-plugin-svelte": "^6.2.4",
 		"@typescript/native-preview": "7.0.0-dev.20260514.1",
 		"autoprefixer": "^10.5.0",
