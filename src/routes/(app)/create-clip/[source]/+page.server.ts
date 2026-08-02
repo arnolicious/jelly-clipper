@@ -39,7 +39,7 @@ export const load: PageServerLoad = async (event) =>
 			const decodedSource = decodeURIComponent(event.params.source);
 
 			let itemId: string;
-			let audioStreamIndex: number | null = null;
+			let audioStreamIndex: number;
 
 			if (!decodedSource.includes('/')) {
 				const itemIdParsed = yield* Schema.decodeUnknown(JellyfinItemIdSchema)(decodedSource).pipe(
@@ -63,7 +63,7 @@ export const load: PageServerLoad = async (event) =>
 			let formatInfo: MediaFormatInfo | null = null;
 			const formatResult = yield* libraryService
 				.getMediaFormatInfo(itemInfo.info)
-				.pipe(Effect.catchAll(() => Effect.succeed(null)));
+				.pipe(Effect.orElseSucceed(() => null));
 
 			let previewUrl: string | undefined;
 			let symlinked = false;

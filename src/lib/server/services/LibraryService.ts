@@ -1,10 +1,82 @@
-import { Context, Effect, Layer, Schema } from 'effect';
+import { Config, Context, Effect, Layer, Option, Schema } from 'effect';
 import { type BaseItemDto } from '../../shared/BaseItemDto';
 import { FileSystem } from '@effect/platform';
 import { AssetService } from './AssetService';
 import { AVService, type VideoCodec, type VideoContainer } from './AVService';
 import type { MediaFormatInfo } from '../../shared/MediaFormatInfo';
 import type { AudioCodec } from '$lib/client/codec-support';
+
+const jellyfinPathMappingSchema = Schema.parseJson(
+	Schema.Array(
+		Schema.Struct({
+			from: Schema.String,
+			to: Schema.String
+		})
+	)
+);
+
+const normalizeAbsolutePath = (path: string) => (path === '/' ? '/' : path.replace(/\/+$/, ''));
+
+const isWithinPath = (path: string, root: string) =>
+	root === '/' ? path.startsWith('/') : path === root || path.startsWith(`${root}/`);
+
+const translatePath = (path: string, mapping: { from: string; to: string }) => {
+	const from = normalizeAbsolutePath(mapping.from);
+	const to = normalizeAbsolutePath(mapping.to);
+
+	if (!isWithinPath(path, from)) {
+		return null;
+	}
+
+	// Retain the leading slash when the source mapping is root.
+	const suffix = path === from ? '' : path.slice(from === '/' ? 0 : from.length);
+	return `${to}${suffix}`;
+};
+
+export const translateJellyfinPath = Effect.fn('LibraryService.translateJellyfinPath')(function* (
+	jellyfinPath: string
+) {
+	const mappingStr = yield* Config.string('JELLYFIN_PATH_MAPPINGS').pipe(
+		Config.withDefault('[]'),
+		Effect.catchAll(() => Effect.succeed('[]'))
+	);
+	const mappingOption = yield* Schema.decode(jellyfinPathMappingSchema)(mappingStr).pipe(
+		Effect.map(Option.some),
+		Effect.catchTag('ParseError', (e) =>
+			Effect.logWarning(`Failed to decode JELLYFIN_PATH_MAPPINGS: ${e.message}`).pipe(Effect.as(Option.none()))
+		)
+	);
+
+	if (Option.isNone(mappingOption)) {
+		return jellyfinPath;
+	}
+
+	const mappings = mappingOption.value.map(({ from, to }) => ({
+		from: normalizeAbsolutePath(from),
+		to: normalizeAbsolutePath(to)
+	}));
+
+	if (mappings.some(({ from, to }) => !from.startsWith('/') || !to.startsWith('/'))) {
+		yield* Effect.logWarning('JELLYFIN_PATH_MAPPINGS entries must use non-empty absolute paths');
+		return jellyfinPath;
+	}
+
+	// Find the most specific mapping while matching complete path segments only.
+	const matchingMapping = mappings
+		.filter((mapping) => isWithinPath(jellyfinPath, mapping.from))
+		.sort((a, b) => b.from.length - a.from.length)[0];
+
+	if (matchingMapping) {
+		const translatedPath = translatePath(jellyfinPath, matchingMapping);
+		if (!translatedPath) {
+			return jellyfinPath;
+		}
+		yield* Effect.logDebug(`Translated Jellyfin path: ${jellyfinPath} -> ${translatedPath}`);
+		return translatedPath;
+	}
+
+	return jellyfinPath;
+});
 
 export class LibraryService extends Context.Tag('LibraryService')<
 	LibraryService,
@@ -45,7 +117,9 @@ export class LibraryService extends Context.Tag('LibraryService')<
 				SUPPORTED_CODECS,
 				SUPPORTED_CONTAINERS,
 				getMediaFormatInfo: Effect.fn('LibraryService.getMediaFormatInfo')(function* (item: BaseItemDto) {
-					const jellyfinItemPath = item.Path;
+					const originaljellyfinItemPath = item.Path;
+
+					const jellyfinItemPath = yield* translateJellyfinPath(originaljellyfinItemPath ?? '');
 
 					yield* Effect.logDebug(`Getting media format info for path: ${jellyfinItemPath}`);
 
@@ -57,8 +131,8 @@ export class LibraryService extends Context.Tag('LibraryService')<
 					const fileExists = yield* fs
 						.exists(jellyfinItemPath)
 						.pipe(
-							Effect.catchAll(() =>
-								Effect.fail(new ItemFileNotFound({ message: `Error accessing file at path: ${jellyfinItemPath}` }))
+							Effect.mapError(
+								() => new ItemFileNotFound({ message: `Error accessing file at path: ${jellyfinItemPath}` })
 							)
 						);
 
@@ -94,7 +168,9 @@ export class LibraryService extends Context.Tag('LibraryService')<
 					};
 				}),
 				checkForLocalMediaFile: Effect.fn('LibraryService.checkForLocalMediaFile')(function* (item: BaseItemDto) {
-					const jellyfinItemPath = item.Path;
+					const originalJellyfinItemPath = item.Path;
+
+					const jellyfinItemPath = yield* translateJellyfinPath(originalJellyfinItemPath ?? '');
 
 					yield* Effect.logDebug(`Checking for local media file at path: ${jellyfinItemPath}`);
 
@@ -106,8 +182,8 @@ export class LibraryService extends Context.Tag('LibraryService')<
 					const fileExists = yield* fs
 						.exists(jellyfinItemPath)
 						.pipe(
-							Effect.catchAll(() =>
-								Effect.fail(new ItemFileNotFound({ message: `Error accessing file at path: ${jellyfinItemPath}` }))
+							Effect.mapError(
+								() => new ItemFileNotFound({ message: `Error accessing file at path: ${jellyfinItemPath}` })
 							)
 						);
 
@@ -143,14 +219,13 @@ export class LibraryService extends Context.Tag('LibraryService')<
 
 					// Symlink unconditionally; cut uses server-side ffmpeg which handles any codec.
 					yield* fs.symlink(jellyfinItemPath, `${assetService.ORIGINALS_DIR}/${item.Id}.mp4`).pipe(
-						Effect.catchAll((error) =>
-							Effect.fail(
+						Effect.mapError(
+							(error) =>
 								new ItemFileNotFound({
 									message: `Failed to create symlink for local media file at path: ${jellyfinItemPath} - ${String(
 										error
 									)}`
 								})
-							)
 						)
 					);
 
