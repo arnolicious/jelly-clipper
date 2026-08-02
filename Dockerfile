@@ -1,30 +1,42 @@
-# Build with:   docker build -t arnolicious/jelly-clipper .
-# Run with:     docker run -v /mount/the/db:/app/db -v /path/to/downloaded/content:/app/static/videos -p 3000:3000 --rm --name IMAGE_NAME IMAGE_NAME
-
-FROM node:25.2-alpine
-
-# Install ffmpeg
-RUN apk add --no-cache ffmpeg
-
-# Install pnpm
-RUN npm install -g pnpm@latest-10
+FROM node:25.2-alpine AS base
 
 WORKDIR /app
-COPY package.json package.json
-COPY pnpm-lock.yaml pnpm-lock.yaml
-COPY pnpm-workspace.yaml pnpm-workspace.yaml
+
+RUN npm install -g pnpm@latest-10
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+FROM base AS build
+
 RUN pnpm install --frozen-lockfile
 
-# Create db file
-RUN mkdir db
-RUN touch db/jelly-clipper.db
-
-ENV DATABASE_URL=db/jelly-clipper.db
-
 COPY . .
+
+RUN mkdir db && touch db/jelly-clipper.db
+
 RUN pnpm run build
 
+FROM base AS production-dependencies
+
+RUN pnpm install --frozen-lockfile --prod
+
+FROM node:25.2-alpine AS runtime
+
+# libass requires Fontconfig and installed fonts to burn subtitles into clips.
+RUN apk add --no-cache ffmpeg fontconfig font-dejavu && fc-cache -f
+
+WORKDIR /app
+
+ENV DATABASE_URL=db/jelly-clipper.db
 ENV NODE_ENV=production
+
+COPY --from=production-dependencies /app/node_modules ./node_modules
+COPY --from=build /app/build ./build
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/prod-entry.ts ./prod-entry.ts
+COPY --from=build /app/src ./src
+
+RUN mkdir db && touch db/jelly-clipper.db
 
 EXPOSE 3000
 
