@@ -5,6 +5,7 @@ import { clips, users } from '$lib/server/db/schema';
 import { fail } from '@sveltejs/kit';
 import { validateSetup } from '$lib/server/db/setup';
 
+// @effect-diagnostics-next-line asyncFunction:off
 export const load: PageServerLoad = async ({ locals, params }) => {
 	const clipId = Number(params.clipId);
 

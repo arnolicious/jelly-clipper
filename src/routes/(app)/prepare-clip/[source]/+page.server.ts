@@ -1,29 +1,18 @@
 import type { PageServerLoad } from './$types';
-import { Effect, Schema } from 'effect';
+import { Effect } from 'effect';
 import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/UserSession';
 import { BadRequest, OkLoader, Redirect } from '$lib/server/responses';
 import { runLoader } from '$lib/server/load-utils';
-import { InvalidSourceFormatError, JellyfinApi } from '$lib/server/services/JellyfinService';
-import { JellyfinItemIdSchema } from '$lib/shared/JellyfinId';
+import { JellyfinApi } from '$lib/server/services/JellyfinService';
+import { parseClipSource } from '$lib/server/services/ClipSource';
 
 export const load: PageServerLoad = (event) =>
 	runLoader(
 		Effect.gen(function* () {
 			const api = yield* JellyfinApi;
 
-			let itemId: string;
+			const itemId = yield* parseClipSource(event.params.source);
 			const decodedSource = decodeURIComponent(event.params.source);
-
-			if (!decodedSource.includes('/')) {
-				const itemIdParsed = yield* Schema.decodeUnknown(JellyfinItemIdSchema)(decodedSource).pipe(
-					Effect.mapError(() => new InvalidSourceFormatError({ source: decodedSource }))
-				);
-				itemId = itemIdParsed;
-			} else {
-				const url = new URL(decodedSource);
-				const pathname = url.pathname;
-				itemId = pathname.split('Items/')[1].split('/')[0];
-			}
 
 			const clipInfo = yield* api.getClipInfo(itemId);
 
@@ -38,7 +27,7 @@ export const load: PageServerLoad = (event) =>
 			return new OkLoader({ data: clipInfo });
 		}).pipe(
 			Effect.provide(makeAuthenticatedRuntimeLayer(event.locals)),
-			Effect.catchTag('InvalidSourceFormatError', (error) => Effect.fail(new BadRequest({ message: error.message })))
+			Effect.catchTag('InvalidClipSourceError', () => Effect.fail(new BadRequest({ message: 'Invalid clip source' })))
 		),
 		{ span: `/prepare-clip/[source]`, spanOptions: { attributes: { source: event.params.source } } }
 	);

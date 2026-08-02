@@ -6,7 +6,7 @@ import { OkLoader } from '$lib/server/responses';
 import { JellyfinApi } from '$lib/server/services/JellyfinService';
 import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/UserSession';
 
-export const load: PageServerLoad = async (event) =>
+export const load: PageServerLoad = (event) =>
 	runLoader(
 		Effect.gen(function* () {
 			const config = yield* JellyClipperConfig;

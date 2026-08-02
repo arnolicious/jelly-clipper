@@ -31,6 +31,7 @@ export class CreateClipService extends Context.Tag('CreateClipService')<
 						db
 							.insert(clips)
 							.values({
+								// @effect-diagnostics-next-line globalDate:off
 								createdAt: new Date(),
 								sourceId: params.sourceInfo.sourceId,
 								sourceTitle: params.sourceInfo.sourceTitle,

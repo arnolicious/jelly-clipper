@@ -38,7 +38,7 @@ export const translateJellyfinPath = Effect.fn('LibraryService.translateJellyfin
 ) {
 	const mappingStr = yield* Config.string('JELLYFIN_PATH_MAPPINGS').pipe(
 		Config.withDefault('[]'),
-		Effect.catchAll(() => Effect.succeed('[]'))
+		Effect.orElseSucceed(() => '[]')
 	);
 	const mappingOption = yield* Schema.decode(jellyfinPathMappingSchema)(mappingStr).pipe(
 		Effect.map(Option.some),
@@ -84,18 +84,10 @@ export class LibraryService extends Context.Tag('LibraryService')<
 		readonly SUPPORTED_CODECS: VideoCodec[];
 		readonly SUPPORTED_CONTAINERS: VideoContainer[];
 		/**
-		 * Gets format information about the media file.
-		 * This includes codec, container, and whether the file is available locally.
+		 * Probes and symlinks a local source file. Browser playback for incompatible
+		 * codecs is handled separately via a Jellyfin live-transcoded HLS URL.
 		 */
-		getMediaFormatInfo: (item: BaseItemDto) => Effect.Effect<MediaFormatInfo, ItemFileNotFound>;
-		/**
-		 * Symlinks the item's local source file into the originals directory, regardless
-		 * of codec. Browser playback for incompatible codecs is handled separately via
-		 * a Jellyfin live-transcoded HLS URL.
-		 */
-		checkForLocalMediaFile: (
-			item: BaseItemDto
-		) => Effect.Effect<{ success: true; formatInfo: MediaFormatInfo }, ItemFileNotFound>;
+		prepareLocalMedia: (item: BaseItemDto) => Effect.Effect<MediaFormatInfo, ItemFileNotFound>;
 	}
 >() {
 	static readonly Default = Layer.effect(
@@ -116,58 +108,7 @@ export class LibraryService extends Context.Tag('LibraryService')<
 			return LibraryService.of({
 				SUPPORTED_CODECS,
 				SUPPORTED_CONTAINERS,
-				getMediaFormatInfo: Effect.fn('LibraryService.getMediaFormatInfo')(function* (item: BaseItemDto) {
-					const originaljellyfinItemPath = item.Path;
-
-					const jellyfinItemPath = yield* translateJellyfinPath(originaljellyfinItemPath ?? '');
-
-					yield* Effect.logDebug(`Getting media format info for path: ${jellyfinItemPath}`);
-
-					if (!jellyfinItemPath) {
-						yield* Effect.logWarning(`No local path available for item ${item.Id}`);
-						return yield* new ItemFileNotFound({ message: 'Item does not have a path property' });
-					}
-
-					const fileExists = yield* fs
-						.exists(jellyfinItemPath)
-						.pipe(
-							Effect.mapError(
-								() => new ItemFileNotFound({ message: `Error accessing file at path: ${jellyfinItemPath}` })
-							)
-						);
-
-					if (!fileExists) {
-						yield* Effect.logWarning(`Local media file not found at path: ${jellyfinItemPath} for item ${item.Id}`);
-						return yield* new ItemFileNotFound({ message: `Local media file not found at path: ${jellyfinItemPath}` });
-					}
-
-					// Get video info
-					const videoInfo = yield* av
-						.getVideoInfo(jellyfinItemPath)
-						.pipe(
-							Effect.catchTag('AvError', () =>
-								Effect.fail(
-									new ItemFileNotFound({ message: `Failed to get video info for file at path: ${jellyfinItemPath}` })
-								)
-							)
-						);
-
-					// Extract audio codec from MediaStreams if available
-					const audioStream = item.MediaStreams?.find((stream) => stream.Type === 'Audio');
-					const audioCodec = audioStream?.Codec?.toLowerCase() as AudioCodec | undefined;
-
-					const isCompatible =
-						SUPPORTED_CODECS.includes(videoInfo.codec) && SUPPORTED_CONTAINERS.includes(videoInfo.container);
-
-					return {
-						codec: videoInfo.codec,
-						container: videoInfo.container,
-						audioCodec,
-						isLocalFileAvailable: true,
-						requiresDownload: !isCompatible
-					};
-				}),
-				checkForLocalMediaFile: Effect.fn('LibraryService.checkForLocalMediaFile')(function* (item: BaseItemDto) {
+				prepareLocalMedia: Effect.fn('LibraryService.prepareLocalMedia')(function* (item: BaseItemDto) {
 					const originalJellyfinItemPath = item.Path;
 
 					const jellyfinItemPath = yield* translateJellyfinPath(originalJellyfinItemPath ?? '');
@@ -229,7 +170,7 @@ export class LibraryService extends Context.Tag('LibraryService')<
 						)
 					);
 
-					return { success: true, formatInfo };
+					return formatInfo;
 				})
 			});
 		})

@@ -57,8 +57,8 @@ export class AVService extends Context.Tag('AVService')<
 						const tempSrtFilePath = yield* assetService
 							.writeSubtitleForClip(params.clipId, adjustedSrtContent)
 							.pipe(
-								Effect.catchAll((e) =>
-									Effect.fail(new AvError({ cause: e, message: `Failed to write subtitle for clip ${params.clipId}` }))
+								Effect.mapError(
+									(e) => new AvError({ cause: e, message: `Failed to write subtitle for clip ${params.clipId}` })
 								)
 							);
 
@@ -68,6 +68,7 @@ export class AVService extends Context.Tag('AVService')<
 						proc.videoFilters(`subtitles='${tempSrtFilePath.replace(/\\/g, '\\\\')}'`); // Escape backslashes for ffmpeg path
 					}
 
+					// @effect-diagnostics-next-line newPromise:off
 					const ffmpegPromise = new Promise<void>((resolve, reject) => {
 						proc
 							.videoCodec('libx264')
@@ -112,6 +113,7 @@ export class AVService extends Context.Tag('AVService')<
 					});
 					const targetPath = `${assetService.CLIPS_DIR}/${clipId}.jpg`;
 					// Use ffmpeg to create a thumbnail
+					// @effect-diagnostics-next-line newPromise:off
 					const ffmpegPromise = new Promise<void>((resolve, reject) => {
 						proc
 							.on('start', (_commandLine) => {
@@ -149,6 +151,7 @@ export class AVService extends Context.Tag('AVService')<
 						catch: (error) => new AvError({ cause: error, message: `Failed to initialize ffmpeg for uri ${uri}` })
 					});
 
+					// @effect-diagnostics-next-line newPromise:off
 					const ffprobePromise = new Promise<string>((resolve, reject) => {
 						proc.ffprobe((err, data) => {
 							if (err) {
@@ -186,14 +189,12 @@ export class AVService extends Context.Tag('AVService')<
 							container = 'mov';
 							break;
 						default:
-							return yield* Effect.fail(
-								new AvError({ message: `Unsupported or unknown container format for uri ${uri}` })
-							);
+							return yield* new AvError({ message: `Unsupported or unknown container format for uri ${uri}` });
 					}
 
 					const codec = yield* Schema.encodeUnknown(VideoCodecSchema)(codecResult).pipe(
-						Effect.catchAll(() =>
-							Effect.fail(new AvError({ message: `Unsupported or unknown video codec ${codecResult} for uri ${uri}` }))
+						Effect.mapError(
+							() => new AvError({ message: `Unsupported or unknown video codec ${codecResult} for uri ${uri}` })
 						)
 					);
 
