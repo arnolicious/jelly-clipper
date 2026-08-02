@@ -2,6 +2,8 @@ FROM node:25.2-alpine AS base
 
 WORKDIR /app
 
+ENV DATABASE_URL=db/jelly-clipper.db
+
 RUN npm install -g pnpm@latest-10
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -27,7 +29,6 @@ RUN apk add --no-cache ffmpeg fontconfig font-dejavu && fc-cache -f
 
 WORKDIR /app
 
-ENV DATABASE_URL=db/jelly-clipper.db
 ENV NODE_ENV=production
 
 COPY --from=production-dependencies /app/node_modules ./node_modules
