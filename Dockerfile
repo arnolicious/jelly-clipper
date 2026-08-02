@@ -29,6 +29,7 @@ RUN apk add --no-cache ffmpeg fontconfig font-dejavu && fc-cache -f
 
 WORKDIR /app
 
+ENV DATABASE_URL=db/jelly-clipper.db
 ENV NODE_ENV=production
 
 COPY --from=production-dependencies /app/node_modules ./node_modules
