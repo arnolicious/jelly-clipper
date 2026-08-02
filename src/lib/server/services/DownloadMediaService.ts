@@ -1,12 +1,5 @@
 import { Context, DateTime, Effect, Layer, Schema, Stream } from 'effect';
-import {
-	JellyfinApi,
-	JellyfinApiError,
-	MultipleMediaSourcesError,
-	NoAudioStreamsError,
-	NoMediaSourceError,
-	TrackSchema
-} from './JellyfinService';
+import { JellyfinApi, JellyfinApiError } from './JellyfinService';
 import { AssetService, WriteStreamFailed } from './AssetService';
 import { BadArgument, SystemError } from '@effect/platform/Error';
 import { HttpClient } from '@effect/platform';
@@ -17,7 +10,8 @@ import type { ParseError } from 'effect/ParseResult';
 import type { RequestError, ResponseError } from '@effect/platform/HttpClientError';
 import { DownloadManager } from './DownloadManagerService';
 import { DownloadProgressEvent } from '$lib/shared/DownloadProgressEvent';
-import { FileInfoSchema, IntFileSize } from '$lib/shared/FileSizes';
+import { IntFileSize, type FileInfo } from '$lib/shared/FileSizes';
+import type { DownloadRequest } from './ClipMediaPreparationService';
 
 const DOWNLOAD_EVENT_EMISSION_RATE_MS = 500;
 
@@ -25,18 +19,14 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 	DownloadMediaService,
 	{
 		downloadMedia: (
-			itemId: string,
-			audioStreamIndex?: number
+			request: DownloadRequest
 		) => Effect.Effect<
-			DownloadResult,
+			FileInfo,
 			| JellyfinApiError
 			| JellyClipperNotConfiguredError
 			| DatabaseError
 			| NoCurrentUserError
 			| BadArgument
-			| MultipleMediaSourcesError
-			| NoAudioStreamsError
-			| NoMediaSourceError
 			| ParseError
 			| RequestError
 			| ResponseError
@@ -53,38 +43,32 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 			const http = yield* HttpClient.HttpClient;
 			const downloadManager = yield* DownloadManager;
 
-			const downloadMedia = Effect.fn('DownloadMediaService.downloadMedia')(function* (
-				itemId: string,
-				audioStreamIndex?: number,
-				subtitleStreamIndex?: number
-			) {
+			const downloadMedia = Effect.fn('DownloadMediaService.downloadMedia')(function* (request: DownloadRequest) {
+				const { itemId, mediaSourceId, expectedSize, audioStreamIndex } = request;
 				yield* Effect.logDebug(`Starting download for item ${itemId}`);
 				const existingFile = yield* assetService
 					.getFileInfoForItem(itemId)
 					.pipe(Effect.catchTag('AssetNotOnDisk', () => Effect.succeed(null)));
 
-				const clipInfo = yield* jellyfinApi.getClipInfo(itemId);
-				const mediaSource = clipInfo.info.MediaSources[0];
-				const subtitleTracks = yield* jellyfinApi.getSubtitleTracks(itemId, mediaSource);
-
 				if (existingFile) {
 					yield* Effect.logDebug(`Found existing file for item ${itemId}, verifying integrity`);
 					let checksPassed = true;
-					const sizeDifference = BigInt(mediaSource.Size) - existingFile.size;
+					const sizeDifference = BigInt(expectedSize) - existingFile.size;
+
 					// TODO: This doesn't work for files that have been transcoded on-the-fly
 					// as their size will differ from the original media source size.
 					// A better approach would be to store and compare checksums, if available ?
 					// Allow the size to differ by up to 100KB
 					if (sizeDifference > 102400n) {
 						yield* Effect.logWarning(
-							`File size mismatch for item ${itemId}: expected ${mediaSource.Size}, got ${existingFile.size}. Size difference: ${sizeDifference}`
+							`File size mismatch for item ${itemId}: expected ${expectedSize}, got ${existingFile.size}. Size difference: ${sizeDifference}`
 						);
 						checksPassed = false;
 					}
 
 					if (checksPassed) {
 						yield* Effect.logDebug(`Existing file for item ${itemId} passed integrity checks, skipping download`);
-						return { fileInfo: existingFile, subtitleTracks };
+						return existingFile;
 					} // else proceed to re-download
 				}
 
@@ -92,16 +76,15 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 				// Download file
 				const downloadUrl = yield* jellyfinApi.getDownloadStreamUrl({
 					itemId,
-					mediaSourceId: mediaSource.Id,
-					audioStreamIndex,
-					subtitleStreamIndex
+					mediaSourceId,
+					audioStreamIndex
 				});
 
 				yield* downloadManager.publishDownloadEvent(
 					DownloadProgressEvent.make({
 						itemId,
 						downloadedBytes: IntFileSize.make(0),
-						totalSizeBytes: IntFileSize.make(mediaSource.Size),
+						totalSizeBytes: IntFileSize.make(expectedSize),
 						progressPercentage: 0
 					})
 				);
@@ -128,8 +111,8 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 								DownloadProgressEvent.make({
 									itemId,
 									downloadedBytes: IntFileSize.make(downloadedSize),
-									totalSizeBytes: IntFileSize.make(mediaSource.Size),
-									progressPercentage: Math.round(100 * (downloadedSize / mediaSource.Size) * 100) / 100
+									totalSizeBytes: IntFileSize.make(expectedSize),
+									progressPercentage: Math.round(100 * (downloadedSize / expectedSize) * 100) / 100
 								})
 							);
 							lastEmissionTime = now;
@@ -147,34 +130,19 @@ export class DownloadMediaService extends Context.Tag('DownloadMediaService')<
 				yield* downloadManager.publishDownloadEvent(
 					DownloadProgressEvent.make({
 						itemId,
-						downloadedBytes: IntFileSize.make(mediaSource.Size),
-						totalSizeBytes: IntFileSize.make(mediaSource.Size),
+						downloadedBytes: IntFileSize.make(expectedSize),
+						totalSizeBytes: IntFileSize.make(expectedSize),
 						progressPercentage: 100
 					})
 				);
 
-				// Eventually return downloaded file info & subtitles
 				yield* Effect.logDebug(`Completed download for item ${itemId}`);
-				return {
-					fileInfo,
-					subtitleTracks
-				};
+				return fileInfo;
 			});
 
 			return DownloadMediaService.of({ downloadMedia });
 		})
 	);
 }
-
-const _DownloadResult = Schema.Struct({
-	fileInfo: FileInfoSchema,
-	subtitleTracks: Schema.Array(TrackSchema)
-});
-
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface DownloadResult extends Schema.Schema.Type<typeof _DownloadResult> {}
-
-// @ts-expect-error - Error with the Size Brand
-export const DownloadResultSchema: Schema.Schema<DownloadResult> = _DownloadResult;
 
 class DownloadFailedError extends Schema.TaggedError<DownloadFailedError>()('DownloadFailedError', {}) {}

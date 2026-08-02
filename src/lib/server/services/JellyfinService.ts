@@ -473,10 +473,3 @@ export class NoAudioStreamsError extends Schema.TaggedError<NoAudioStreamsError>
 	sourceId: Schema.String,
 	mediaInfo: Schema.Object
 }) {}
-
-export class InvalidSourceFormatError extends Schema.TaggedError<InvalidSourceFormatError>()(
-	'InvalidSourceFormatError',
-	{
-		source: Schema.String
-	}
-) {}

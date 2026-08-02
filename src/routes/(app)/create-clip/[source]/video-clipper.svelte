@@ -15,7 +15,6 @@
 	import { toast } from 'svelte-sonner';
 	import { goto } from '$app/navigation';
 	import TimelineClipper from './timeline-clipper.svelte';
-	import type { Track as OldTrack } from './+page.server';
 	import type { SelectItem } from '$lib/types';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import * as Select from '$lib/components/ui/select';
@@ -26,7 +25,7 @@
 	type Props = {
 		sourceId: string;
 		sourceInfo: BaseItemDto | OriginalBaseItemDto;
-		subtitleTracks?: ReadonlyArray<Track> | OldTrack[];
+		subtitleTracks: ReadonlyArray<Track>;
 		previewUrl?: string;
 	};
 

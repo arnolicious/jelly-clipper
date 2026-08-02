@@ -54,6 +54,7 @@ export const makeAuthenticatedRuntimeLayerFromCookies = (cookies: Cookies) => {
 							.findFirst({
 								where: and(
 									eq(sessions.sessionId, sessionId),
+									// @effect-diagnostics-next-line globalDate:off
 									gte(sessions.createdAt, new Date(Date.now() - SESSION_EXPIRY))
 								)
 							})

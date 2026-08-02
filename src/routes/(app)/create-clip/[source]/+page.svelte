@@ -83,6 +83,13 @@
 	};
 </script>
 
+{#if data.subtitleWarning}
+	<div class="flex items-center gap-2 text-sm text-yellow-600 mb-4" role="alert">
+		<i class="ph-bold ph-warning"></i>
+		<span>{data.subtitleWarning}</span>
+	</div>
+{/if}
+
 {#if isCheckingCompatibility}
 	<div class="flex flex-col gap-8 justify-center items-center">
 		<div class="h-8 w-8 animate-spin rounded-full border-4 border-current border-t-transparent text-blue-500"></div>
@@ -97,15 +104,20 @@
 		</div>
 		{#await data.download then resultExit}
 			{#if 'fileInfo' in resultExit}
-				{@const { fileInfo, subtitleTracks } = resultExit}
+				{@const { fileInfo } = resultExit}
 				<VideoClipper
 					sourceId={fileInfo.name}
 					sourceInfo={data.itemInfo}
-					{subtitleTracks}
+					subtitleTracks={data.subtitleTracks}
 					previewUrl={data.previewUrl}
 				/>
 			{:else}
-				<VideoClipper sourceId={data.itemInfo.Id} sourceInfo={data.itemInfo} previewUrl={data.previewUrl} />
+				<VideoClipper
+					sourceId={data.itemInfo.Id}
+					sourceInfo={data.itemInfo}
+					subtitleTracks={data.subtitleTracks}
+					previewUrl={data.previewUrl}
+				/>
 			{/if}
 		{/await}
 	</div>
@@ -138,9 +150,9 @@
 		{/if}
 	{:then resultExit}
 		{#if 'fileInfo' in resultExit}
-			{@const { fileInfo, subtitleTracks } = resultExit}
+			{@const { fileInfo } = resultExit}
 
-			<VideoClipper sourceId={fileInfo.name} sourceInfo={data.itemInfo} {subtitleTracks} />
+			<VideoClipper sourceId={fileInfo.name} sourceInfo={data.itemInfo} subtitleTracks={data.subtitleTracks} />
 		{:else}
 			<div class="flex flex-col gap-8 justify-center items-center">
 				<span class="text-slate-400 italic">
