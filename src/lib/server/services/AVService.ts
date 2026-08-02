@@ -43,6 +43,7 @@ export class AVService extends Context.Tag('AVService')<
 					const subtitle = params.subtitleTrack;
 					let commandLine = '';
 					const ffmpegStderr: string[] = [];
+					let subtitleFilePath: string | undefined;
 
 					proc.setStartTime(params.start).setDuration(duration);
 
@@ -62,11 +63,11 @@ export class AVService extends Context.Tag('AVService')<
 								)
 							);
 
-						// 3. Add the subtitles filter to ffmpeg
-						// The `subtitles` filter expects a file path.
-						// Ensure the path is correct and accessible by ffmpeg.
-						proc.videoFilters(`subtitles='${tempSrtFilePath.replace(/\\/g, '\\\\')}'`); // Escape backslashes for ffmpeg path
+						subtitleFilePath = tempSrtFilePath;
 					}
+
+					proc.videoFilters(buildClipVideoFilters(subtitleFilePath));
+					proc.audioFilters('asetpts=PTS-STARTPTS');
 
 					// @effect-diagnostics-next-line newPromise:off
 					const ffmpegPromise = new Promise<void>((resolve, reject) => {
@@ -219,6 +220,11 @@ export class AvError extends Schema.TaggedError<AvError>()('AvError', {
 }) {}
 
 const srtTimecodeRegex = /^(\d{2}):(\d{2}):(\d{2}),(\d{3})\s+-->\s+(\d{2}):(\d{2}):(\d{2}),(\d{3})$/;
+
+export const buildClipVideoFilters = (subtitleFilePath?: string) => [
+	'setpts=PTS-STARTPTS',
+	...(subtitleFilePath ? [`subtitles='${subtitleFilePath.replace(/\\/g, '\\\\')}'`] : [])
+];
 
 const parseSrtTimestamp = (hours: string, minutes: string, seconds: string, milliseconds: string) =>
 	(Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds)) * 1000 + Number(milliseconds);
