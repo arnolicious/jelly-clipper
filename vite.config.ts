@@ -8,6 +8,9 @@ dotenv.config();
 
 export default defineConfig({
 	plugins: [vidstack(), sveltekit(), expressVitePlugin()],
+	optimizeDeps: {
+		include: ['vidstack/player', 'vidstack/player/layouts/default', 'vidstack/player/ui']
+	},
 	server: {
 		fs: {
 			allow: ['./assets']

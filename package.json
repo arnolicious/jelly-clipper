@@ -15,8 +15,8 @@
 		"lint:fix": "eslint . --fix",
 		"format:check": "prettier --check .",
 		"format:fix": "prettier --write .",
-		"check": "svelte-kit sync && svelte-check --incremental --tsgo --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --incremental --tsgo --tsconfig ./tsconfig.json --watch",
+		"check": "svelte-kit sync && svelte-check --incremental --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --incremental --tsconfig ./tsconfig.json --watch",
 		"db:push": "drizzle-kit push",
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio"

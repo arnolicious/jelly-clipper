@@ -16,7 +16,7 @@ export const load: PageServerLoad = (event) =>
 
 			if (!decodedSource.includes('/')) {
 				const itemIdParsed = yield* Schema.decodeUnknown(JellyfinItemIdSchema)(decodedSource).pipe(
-					Effect.catchAll(() => Effect.fail(new InvalidSourceFormatError({ source: decodedSource })))
+					Effect.mapError(() => new InvalidSourceFormatError({ source: decodedSource }))
 				);
 				itemId = itemIdParsed;
 			} else {

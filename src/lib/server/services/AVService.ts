@@ -41,13 +41,17 @@ export class AVService extends Context.Tag('AVService')<
 					const proc = ffmpeg({ source: params.sourceUri });
 					const duration = params.end - params.start;
 					const subtitle = params.subtitleTrack;
+					let commandLine = '';
+					const ffmpegStderr: string[] = [];
 
 					proc.setStartTime(params.start).setDuration(duration);
 
 					if (subtitle && subtitle.fileContent) {
 						yield* Effect.logDebug(`Adding subtitles to clip ${params.clipId} in language ${subtitle.language}`);
-						// 1. Adjust subtitle timestamps
-						const adjustedSrtContent = adjustSrtTimestamps(subtitle.fileContent, params.start);
+						const adjustedSrtContent = adjustSrtTimestamps(subtitle.fileContent, params.start, params.end);
+						yield* Effect.logDebug(
+							`Prepared subtitles for clip ${params.clipId}: ${countSrtCues(subtitle.fileContent)} cues before clipping, ${countSrtCues(adjustedSrtContent)} cues within ${params.start}s-${params.end}s`
+						);
 
 						// 2. Save the adjusted subtitle content to a temporary file
 						const tempSrtFilePath = yield* assetService
@@ -74,27 +78,29 @@ export class AVService extends Context.Tag('AVService')<
 							])
 							.audioCodec('aac')
 							.saveToFile(`${assetService.CLIPS_DIR}/${params.clipId}.mp4`)
-							.on('start', (_commandLine) => {
-								// console.info('Spawned Ffmpeg with command: ' + commandLine);
+							.on('start', (startedCommandLine) => {
+								commandLine = startedCommandLine;
 							})
+							.on('stderr', (line) => ffmpegStderr.push(line))
 							.on('error', (err) => {
-								// console.error('An error occurred: ' + err.message);
 								reject(err);
 							})
-							.on('end', (err) => {
-								if (!err) {
-									// console.info('Processing finished !');
-									resolve();
-								}
-								reject(err);
-							});
+							.on('end', () => resolve());
 					});
 
 					yield* Effect.logDebug(`Starting ffmpeg processing for clip ${params.clipId}`);
 					yield* Effect.tryPromise({
 						try: () => ffmpegPromise,
-						catch: (error) => new AvError({ cause: error, message: `Failed to clip video for clipId ${params.clipId}` })
-					});
+						catch: (error) =>
+							new AvError({
+								cause: error,
+								message: `Failed to clip video for clip ${params.clipId}. Command: ${commandLine || 'not started'}. FFmpeg stderr:\n${ffmpegStderr.join('\n')}`
+							})
+					}).pipe(Effect.tapError((error) => Effect.logError(error.message)));
+					yield* Effect.logDebug(`FFmpeg command for clip ${params.clipId}: ${commandLine}`);
+					if (ffmpegStderr.length > 0) {
+						yield* Effect.logDebug(`FFmpeg stderr for clip ${params.clipId}:\n${ffmpegStderr.join('\n')}`);
+					}
 				}),
 				createThumbnailForClip: Effect.fn('AVService.createThumbnailForClip')(function* (
 					clipId,
@@ -211,41 +217,55 @@ export class AvError extends Schema.TaggedError<AvError>()('AvError', {
 	message: Schema.String
 }) {}
 
-// Helper function to adjust SRT timestamps
-function adjustSrtTimestamps(srtContent: SrtStringContent, offsetInSeconds: number): SrtStringContent {
-	const lines = srtContent.split('\n') as SrtStringContent[];
-	const newSrtContent: SrtStringContent[] = [];
+const srtTimecodeRegex = /^(\d{2}):(\d{2}):(\d{2}),(\d{3})\s+-->\s+(\d{2}):(\d{2}):(\d{2}),(\d{3})$/;
 
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i];
-		// SRT time format: HH:MM:SS,ms --> HH:MM:SS,ms
-		const timecodeRegex = /(\d{2}):(\d{2}):(\d{2}),(\d{3}) --> (\d{2}):(\d{2}):(\d{2}),(\d{3})/;
+const parseSrtTimestamp = (hours: string, minutes: string, seconds: string, milliseconds: string) =>
+	(Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds)) * 1000 + Number(milliseconds);
 
-		if (timecodeRegex.test(line)) {
-			const match = line.match(timecodeRegex);
-			if (match) {
-				const [_, startH, startM, startS, startMs, endH, endM, endS, endMs] = match.map(Number);
+const formatSrtTimestamp = (milliseconds: number) => {
+	const totalSeconds = Math.floor(milliseconds / 1000);
+	const hours = Math.floor(totalSeconds / 3600);
+	const minutes = Math.floor((totalSeconds % 3600) / 60);
+	const seconds = totalSeconds % 60;
+	return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')},${String(milliseconds % 1000).padStart(3, '0')}`;
+};
 
-				const startTimeInMs = (startH * 3600 + startM * 60 + startS) * 1000 + startMs;
-				const endTimeInMs = (endH * 3600 + endM * 60 + endS) * 1000 + endMs;
+const countSrtCues = (srtContent: SrtStringContent) =>
+	srtContent.split(/\r?\n/).filter((line) => srtTimecodeRegex.test(line.trim())).length;
 
-				const newStartTimeInMs = Math.max(0, startTimeInMs - offsetInSeconds * 1000);
-				const newEndTimeInMs = Math.max(0, endTimeInMs - offsetInSeconds * 1000);
+export function adjustSrtTimestamps(
+	srtContent: SrtStringContent,
+	clipStartInSeconds: number,
+	clipEndInSeconds: number
+): SrtStringContent {
+	const clipStartInMs = Math.round(clipStartInSeconds * 1000);
+	const clipEndInMs = Math.round(clipEndInSeconds * 1000);
 
-				const formatTime = (ms: number) => {
-					const totalSeconds = Math.floor(ms / 1000);
-					const hours = Math.floor(totalSeconds / 3600);
-					const minutes = Math.floor((totalSeconds % 3600) / 60);
-					const seconds = totalSeconds % 60;
-					const milliseconds = ms % 1000;
-					return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')},${String(milliseconds).padStart(3, '0')}`;
-				};
-
-				newSrtContent.push(`${formatTime(newStartTimeInMs)} --> ${formatTime(newEndTimeInMs)}` as SrtStringContent);
+	return srtContent
+		.split(/\r?\n\s*\r?\n/)
+		.map((cue) => {
+			const lines = cue.split(/\r?\n/);
+			const timecodeLineIndex = lines.findIndex((line) => srtTimecodeRegex.test(line.trim()));
+			if (timecodeLineIndex === -1) {
+				return cue;
 			}
-		} else {
-			newSrtContent.push(line);
-		}
-	}
-	return newSrtContent.join('\n') as SrtStringContent;
+
+			const match = lines[timecodeLineIndex].trim().match(srtTimecodeRegex)!;
+			const cueStartInMs = parseSrtTimestamp(match[1], match[2], match[3], match[4]);
+			const cueEndInMs = parseSrtTimestamp(match[5], match[6], match[7], match[8]);
+			if (cueEndInMs <= clipStartInMs || cueStartInMs >= clipEndInMs) {
+				return null;
+			}
+
+			const adjustedStartInMs = Math.max(0, cueStartInMs - clipStartInMs);
+			const adjustedEndInMs = Math.min(clipEndInMs - clipStartInMs, cueEndInMs - clipStartInMs);
+			if (adjustedEndInMs <= adjustedStartInMs) {
+				return null;
+			}
+
+			lines[timecodeLineIndex] = `${formatSrtTimestamp(adjustedStartInMs)} --> ${formatSrtTimestamp(adjustedEndInMs)}`;
+			return lines.join('\n');
+		})
+		.filter((cue): cue is string => cue !== null)
+		.join('\n\n') as SrtStringContent;
 }

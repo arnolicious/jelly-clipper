@@ -122,12 +122,12 @@ export const load: PageServerLoad = async (event) =>
 			return new OkLoader({ data: { itemInfo: itemInfo.info, download: downloadResult, formatInfo, previewUrl } });
 		}).pipe(
 			Effect.provide(makeAuthenticatedRuntimeLayer(event.locals)),
-			Effect.catchTag('BadArgument', (error) => Effect.fail(new BadRequest({ message: error.message }))),
-			Effect.catchTag('InvalidSourceFormatError', (error) => Effect.fail(new BadRequest({ message: error.message }))),
-			Effect.catchTag('SystemError', (error) => Effect.fail(new ServerError({ message: error.message }))),
-			Effect.catchTag('DownloadCurrentlyInProgressError', (error) =>
-				Effect.fail(new ServerError({ message: error.message }))
-			)
+			Effect.catchTags({
+				BadArgument: (error) => Effect.fail(new BadRequest({ message: error.message })),
+				InvalidSourceFormatError: (error) => Effect.fail(new BadRequest({ message: error.message })),
+				SystemError: (error) => Effect.fail(new ServerError({ message: error.message })),
+				DownloadCurrentlyInProgressError: (error) => Effect.fail(new ServerError({ message: error.message }))
+			})
 		),
 		{ span: `/create-clip/[source]`, spanOptions: { attributes: { source: event.params.source } } }
 	);
