@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adjustSrtTimestamps } from './AVService';
+import { adjustSrtTimestamps, buildClipVideoFilters } from './AVService';
 import type { SrtStringContent } from './CreateClipService';
 
 const srt = (content: string) => content as SrtStringContent;
@@ -29,5 +29,18 @@ describe('adjustSrtTimestamps', () => {
 		const result = adjustSrtTimestamps(srt('1\r\n00:00:04,250 --> 00:00:05,750\r\nInside'), 3.5, 7);
 
 		expect(result).toBe('1\n00:00:00,750 --> 00:00:02,250\nInside');
+	});
+});
+
+describe('buildClipVideoFilters', () => {
+	it('normalizes timestamps before rendering subtitles', () => {
+		expect(buildClipVideoFilters('assets/videos/clips/30.srt')).toEqual([
+			'setpts=PTS-STARTPTS',
+			"subtitles='assets/videos/clips/30.srt'"
+		]);
+	});
+
+	it('normalizes timestamps for clips without subtitles', () => {
+		expect(buildClipVideoFilters()).toEqual(['setpts=PTS-STARTPTS']);
 	});
 });
