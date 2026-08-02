@@ -147,8 +147,4 @@ export class AssetService extends Context.Tag('AssetService')<
 
 export class AssetNotOnDisk extends Schema.TaggedError<AssetNotOnDisk>()('AssetNotOnDisk', {}) {}
 
-export class WriteStreamFailed extends Schema.TaggedError<WriteStreamFailed>()('WriteStreamFailed', {}) {
-	constructor() {
-		super();
-	}
-}
+export class WriteStreamFailed extends Schema.TaggedError<WriteStreamFailed>()('WriteStreamFailed', {}) {}

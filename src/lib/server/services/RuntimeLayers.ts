@@ -12,6 +12,7 @@ import { FetchHttpClient } from '@effect/platform';
 import { LibraryService } from './LibraryService';
 import { NodeContext } from '@effect/platform-node';
 import { LoggerLayer } from './LoggerLayer';
+import { ClipMediaPreparationService } from './ClipMediaPreparationService';
 
 // User-Agnostic Layers
 const AnonymousJellyfinApiLayer = AnonymousJellyfinApi.Default;
@@ -39,12 +40,15 @@ const AuthedJellyfinApiLayer = JellyfinApi.Default;
 const ClipServiceLayer = ClipService.Default;
 const CreateClipServiceLayer = CreateClipService.Default;
 const DownloadMediaServiceLayer = DownloadMediaService.Default.pipe(Layer.provide(FetchHttpClient.layer));
+const ClipMediaPreparationServiceLayer = ClipMediaPreparationService.Default;
 
-export const AuthenticatedUserLayer = Layer.mergeAll(
-	AuthedJellyfinApiLayer,
+const AuthenticatedServiceLayer = Layer.mergeAll(
 	DownloadMediaServiceLayer,
+	ClipMediaPreparationServiceLayer,
 	CreateClipServiceLayer,
 	ClipServiceLayer
-).pipe(Layer.provide(AuthedJellyfinApiLayer));
+);
+
+export const AuthenticatedUserLayer = Layer.provideMerge(AuthenticatedServiceLayer, AuthedJellyfinApiLayer);
 
 export const serverRuntime = ManagedRuntime.make(UserAgnosticLayer);

@@ -71,11 +71,10 @@ export class DownloadManager extends Context.Tag('DownloadManager')<
 					const fullStream = Stream.fromPubSub(downloadPubSub).pipe(
 						Stream.tap(() => Effect.logDebug(`DownloadManager: Emitting download event for item ${itemId}`))
 					);
-					const filteredStream = fullStream
-						.pipe(Stream.filter((event) => event.itemId === itemId))
-						.pipe(
-							Stream.tap(() => Effect.logDebug(`DownloadManager: Emitting filtered download event for item ${itemId}`))
-						);
+					const filteredStream = fullStream.pipe(
+						Stream.filter((event) => event.itemId === itemId),
+						Stream.tap(() => Effect.logDebug(`DownloadManager: Emitting filtered download event for item ${itemId}`))
+					);
 					return filteredStream;
 				}
 			});

@@ -1,133 +1,82 @@
 import type { PageServerLoad } from './$types';
-import { Effect, pipe, Schema } from 'effect';
-import { DownloadMediaService, type DownloadResult } from '$lib/server/services/DownloadMediaService';
-import { BigIntFileSize } from '$lib/shared/FileSizes';
+import { Effect, pipe } from 'effect';
+import { DownloadMediaService } from '$lib/server/services/DownloadMediaService';
+import { BigIntFileSize, type FileInfo } from '$lib/shared/FileSizes';
 import { makeAuthenticatedRuntimeLayer } from '$lib/server/services/UserSession';
 import { AssetService } from '$lib/server/services/AssetService';
 import { runLoader } from '$lib/server/load-utils';
 import { BadRequest, OkLoader, ServerError } from '$lib/server/responses';
 import { DownloadManager } from '$lib/server/services/DownloadManagerService';
-import { InvalidSourceFormatError, JellyfinApi } from '$lib/server/services/JellyfinService';
-import { JellyfinItemIdSchema } from '$lib/shared/JellyfinId';
-import { LibraryService } from '$lib/server/services/LibraryService';
-import type { MediaFormatInfo } from '$lib/shared/MediaFormatInfo';
+import { ClipMediaPreparationService, type DownloadRequest } from '$lib/server/services/ClipMediaPreparationService';
+import { parseClipSource } from '$lib/server/services/ClipSource';
 
-export type Track = {
-	index: number;
-	language: string;
-	title: string;
-	subtitleFile: string;
-};
-
-const downloadEffect = Effect.fn('downloadEffect')(function* (source: string, audioStreamIndex: number | null) {
-	yield* Effect.logDebug(`Starting downloadEffect for item ${source}`);
+const downloadEffect = Effect.fn('downloadEffect')(function* (request: DownloadRequest) {
+	yield* Effect.logDebug(`Starting downloadEffect for item ${request.itemId}`);
 	const downloadService = yield* DownloadMediaService;
-
-	const result = yield* downloadService.downloadMedia(source, audioStreamIndex !== null ? audioStreamIndex : undefined);
-
-	return result;
+	const fileInfo = yield* downloadService.downloadMedia(request);
+	return { fileInfo };
 });
 
-export const load: PageServerLoad = async (event) =>
+export const load: PageServerLoad = (event) =>
 	runLoader(
 		Effect.gen(function* () {
 			const fiberManager = yield* DownloadManager;
-			const api = yield* JellyfinApi;
 			const assetService = yield* AssetService;
-			const libraryService = yield* LibraryService;
-
+			const preparationService = yield* ClipMediaPreparationService;
+			const itemId = yield* parseClipSource(event.params.source);
 			const decodedSource = decodeURIComponent(event.params.source);
+			const sourceUrl = decodedSource.includes('/') ? new URL(decodedSource) : event.url;
+			const audioStreamIndexParam = sourceUrl.searchParams.get('audioStreamIndex');
+			const audioStreamIndex = audioStreamIndexParam === null ? undefined : Number(audioStreamIndexParam);
 
-			let itemId: string;
-			let audioStreamIndex: number | null = null;
-
-			if (!decodedSource.includes('/')) {
-				const itemIdParsed = yield* Schema.decodeUnknown(JellyfinItemIdSchema)(decodedSource).pipe(
-					Effect.catchTag('ParseError', () => Effect.fail(new InvalidSourceFormatError({ source: decodedSource })))
-				);
-				itemId = itemIdParsed;
-				audioStreamIndex = Number(event.url.searchParams.get('audioStreamIndex'));
-			} else {
-				const url = new URL(decodedSource);
-				const pathname = url.pathname;
-				itemId = pathname.split('Items/')[1].split('/')[0];
-				audioStreamIndex = Number(url.searchParams.get('audioStreamIndex'));
-			}
-
-			// Ensure asset directories exist
 			yield* assetService.ensureAssetDirectoriesExist();
+			const preparedMedia = yield* preparationService.prepareMedia(itemId, audioStreamIndex);
 
-			const itemInfo = yield* api.getClipInfo(itemId);
-
-			// Get media format information to pass to client for compatibility checking
-			let formatInfo: MediaFormatInfo | null = null;
-			const formatResult = yield* libraryService
-				.getMediaFormatInfo(itemInfo.info)
-				.pipe(Effect.catchAll(() => Effect.succeed(null)));
-
-			let previewUrl: string | undefined;
-			let symlinked = false;
-
-			if (formatResult) {
-				formatInfo = formatResult;
-
-				// Symlink any local source
-				const symlinkResult = yield* libraryService.checkForLocalMediaFile(itemInfo.info).pipe(Effect.either);
-				symlinked = symlinkResult._tag === 'Right';
-
-				// Browser can't decode the source iso give the player a Jellyfin HLS transcode URL
-				if (symlinked && formatResult.requiresDownload) {
-					const mediaSource = itemInfo.info.MediaSources?.[0];
-					if (mediaSource?.Id) {
-						previewUrl = yield* api.getStreamPreviewUrl({
-							itemId: itemInfo.info.Id,
-							mediaSourceId: mediaSource.Id,
-							audioStreamIndex: audioStreamIndex !== null ? audioStreamIndex : undefined
-						});
-					}
-				}
-			}
-
-			// Skip the download when symlinked: cut reads the source via the symlink,
-			// preview reads it via previewUrl (incompatible codec) or directly (compatible).
-			let downloadResult: Promise<DownloadResult | { errorMessage: string }>;
-			if (symlinked) {
+			let downloadResult: Promise<{ fileInfo: FileInfo } | { errorMessage: string }>;
+			if (preparedMedia.source === 'local') {
 				downloadResult = Promise.resolve({
-					fileInfo: { name: itemInfo.info.Id, extension: 'mp4', size: BigIntFileSize.make(0n) },
-					subtitleTracks: []
+					fileInfo: { name: preparedMedia.itemInfo.Id, extension: 'mp4', size: BigIntFileSize.make(0n) }
 				});
 			} else {
-				// Don't yield* here, we want to run the download and pass the promise back to the client
 				const downloadProgram = pipe(
-					downloadEffect(itemInfo.info.Id, audioStreamIndex),
+					downloadEffect(preparedMedia.downloadRequest),
 					Effect.withLogSpan('create-clip.downloadEffect'),
 					Effect.provide(makeAuthenticatedRuntimeLayer(event.locals))
 				);
 
-				yield* Effect.logDebug(`Forking download fiber for item ${itemInfo.info.Id}`);
-				const downloadFiber = yield* fiberManager.startDownloadFiber(itemInfo.info.Id, downloadProgram);
-				yield* Effect.logDebug(`Returning download promise for item ${itemInfo.info.Id}`, downloadFiber.id());
+				yield* Effect.logDebug(`Forking download fiber for item ${preparedMedia.itemInfo.Id}`);
+				const downloadFiber = yield* fiberManager.startDownloadFiber(preparedMedia.itemInfo.Id, downloadProgram);
+				yield* Effect.logDebug(`Returning download promise for item ${preparedMedia.itemInfo.Id}`, downloadFiber.id());
 				downloadResult = Effect.runPromiseExit(downloadFiber).then((exit) => {
 					if (exit._tag === 'Success') {
 						return exit.value;
-					} else {
-						if (exit.cause._tag === 'Fail') {
-							return { errorMessage: `${exit.cause.error._tag}: ${exit.cause.error.message}` };
-						}
-						return { errorMessage: `An unexpected error occurred: ${exit.cause.toString()}` };
 					}
+					if (exit.cause._tag === 'Fail') {
+						return { errorMessage: `${exit.cause.error._tag}: ${exit.cause.error.message}` };
+					}
+					return { errorMessage: `An unexpected error occurred: ${exit.cause.toString()}` };
 				});
 			}
 
-			return new OkLoader({ data: { itemInfo: itemInfo.info, download: downloadResult, formatInfo, previewUrl } });
+			return new OkLoader({
+				data: {
+					itemInfo: preparedMedia.itemInfo,
+					download: downloadResult,
+					subtitleTracks: preparedMedia.subtitleTracks,
+					subtitleWarning: preparedMedia.subtitleWarning,
+					formatInfo: preparedMedia.formatInfo,
+					previewUrl: preparedMedia.previewUrl
+				}
+			});
 		}).pipe(
 			Effect.provide(makeAuthenticatedRuntimeLayer(event.locals)),
-			Effect.catchTag('BadArgument', (error) => Effect.fail(new BadRequest({ message: error.message }))),
-			Effect.catchTag('InvalidSourceFormatError', (error) => Effect.fail(new BadRequest({ message: error.message }))),
-			Effect.catchTag('SystemError', (error) => Effect.fail(new ServerError({ message: error.message }))),
-			Effect.catchTag('DownloadCurrentlyInProgressError', (error) =>
-				Effect.fail(new ServerError({ message: error.message }))
-			)
+			Effect.catchTags({
+				BadArgument: (error) => Effect.fail(new BadRequest({ message: error.message })),
+				InvalidClipSourceError: () => Effect.fail(new BadRequest({ message: 'Invalid clip source' })),
+				ClipMediaPreparationError: (error) => Effect.fail(new ServerError({ message: error.message })),
+				SystemError: (error) => Effect.fail(new ServerError({ message: error.message })),
+				DownloadCurrentlyInProgressError: (error) => Effect.fail(new ServerError({ message: error.message }))
+			})
 		),
 		{ span: `/create-clip/[source]`, spanOptions: { attributes: { source: event.params.source } } }
 	);
