@@ -1,3 +1,4 @@
+/** @effect-diagnostics asyncFunction:off */
 import { getUserFromSession } from '$lib/server/db/sessions';
 import { type Handle, type HandleServerError } from '@sveltejs/kit';
 import { Effect } from 'effect';
@@ -11,11 +12,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return new Response('Unauthorized', { status: 401 });
 	}
 
-	if (!sessionId) return resolve(event);
+	if (!sessionId) {
+		return resolve(event);
+	}
 
 	const user = await getUserFromSession(sessionId);
 
-	if (!user) return resolve(event);
+	if (!user) {
+		return resolve(event);
+	}
 
 	event.locals.user = user;
 

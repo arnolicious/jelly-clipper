@@ -51,7 +51,9 @@ export class CreateClipService extends Context.Tag('CreateClipService')<
 					}
 
 					const subtitle = yield* Effect.gen(function* () {
-						if (!params.subtitleTrack) return undefined;
+						if (!params.subtitleTrack) {
+							return undefined;
+						}
 
 						const clipInfo = yield* jellyfinApi
 							.getClipInfo(params.sourceInfo.sourceId)

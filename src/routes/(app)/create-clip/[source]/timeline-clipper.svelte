@@ -33,7 +33,9 @@
 	 * the "center" should be the middle of the highlighted range
 	 */
 	const onZoomIn = () => {
-		if (visibleDurationPercentage <= 1) return;
+		if (visibleDurationPercentage <= 1) {
+			return;
+		}
 
 		if (visibleDurationPercentage <= 10) {
 			visibleDurationPercentage -= FINE_ZOOM_STEP;
@@ -54,7 +56,9 @@
 	};
 
 	const onZoomOut = () => {
-		if (visibleDurationPercentage >= 100) return;
+		if (visibleDurationPercentage >= 100) {
+			return;
+		}
 
 		if (visibleDurationPercentage <= 10) {
 			visibleDurationPercentage += FINE_ZOOM_STEP;
@@ -104,7 +108,9 @@
 	}
 
 	const onMouseMove = $derived((event: MouseEvent) => {
-		if (!timelineEl || !draggingHandle) return;
+		if (!timelineEl || !draggingHandle) {
+			return;
+		}
 		const rect = timelineEl.getBoundingClientRect();
 
 		const offsetX = event.clientX - rect.left;
@@ -134,7 +140,9 @@
 	}
 
 	const onTouchMove = $derived((event: TouchEvent) => {
-		if (!timelineEl || !draggingHandle) return;
+		if (!timelineEl || !draggingHandle) {
+			return;
+		}
 		touchIsActive = true;
 		const rect = timelineEl.getBoundingClientRect();
 		const touch = event.touches[0];

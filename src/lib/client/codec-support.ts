@@ -44,10 +44,14 @@ export function canPlayCodec(codec: VideoCodec, container: VideoContainer, audio
  */
 function getMimeType(codec: VideoCodec, container: VideoContainer, audioCodec?: AudioCodec): string | null {
 	const containerMime = getContainerMimeType(container);
-	if (!containerMime) return null;
+	if (!containerMime) {
+		return null;
+	}
 
 	const videoCodecString = getVideoCodecString(codec);
-	if (!videoCodecString) return null;
+	if (!videoCodecString) {
+		return null;
+	}
 
 	const audioCodecString = audioCodec ? getAudioCodecString(audioCodec) : null;
 

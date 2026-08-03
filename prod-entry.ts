@@ -13,7 +13,9 @@ import * as schema from './src/lib/server/db/schema.ts';
 // Self-contained DB client for auth middleware, using process.env directly
 // to avoid importing $env/dynamic/private which only works inside SvelteKit
 const DATABASE_URL = process.env.DATABASE_URL;
-if (!DATABASE_URL) throw new Error('DATABASE_URL is not set');
+if (!DATABASE_URL) {
+	throw new Error('DATABASE_URL is not set');
+}
 
 const authDbClient = createClient({ url: `file:${DATABASE_URL}` });
 const authDb = drizzle(authDbClient, { schema });
@@ -21,7 +23,9 @@ const authDb = drizzle(authDbClient, { schema });
 const SESSION_EXPIRY = 1000 * 60 * 60 * 24 * 7 * 4; // 4 weeks
 
 function getSessionIdFromCookieHeader(cookieHeader: string | undefined): string | undefined {
-	if (!cookieHeader) return undefined;
+	if (!cookieHeader) {
+		return undefined;
+	}
 	const match = cookieHeader.match(/(?:^|;\s*)sessionid=([^;]*)/);
 	return match?.[1];
 }
