@@ -37,7 +37,9 @@
 	let triggerEl: HTMLDivElement | null = $state(null);
 
 	$effect(() => {
-		if (!triggerEl) return;
+		if (!triggerEl) {
+			return;
+		}
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		remoteControl.setPlayer(player as any);
 		remoteControl.setTarget(triggerEl);
@@ -51,7 +53,9 @@
 	let clipEndTimeSeconds = $state(30);
 
 	const setPlayerTime = (timeInSeconds: number) => {
-		if (!player) return;
+		if (!player) {
+			return;
+		}
 		player.currentTime = timeInSeconds;
 	};
 
@@ -92,9 +96,7 @@
 			},
 			subtitleTrack: selectedSubtitleTrack
 				? {
-						fileContent: selectedSubtitleTrack.subtitleFile,
-						language: selectedSubtitleTrack.language,
-						title: selectedSubtitleTrack.title
+						index: selectedSubtitleTrack.index
 					}
 				: undefined
 		};
@@ -127,7 +129,9 @@
 	};
 
 	$effect(() => {
-		if (!player) return;
+		if (!player) {
+			return;
+		}
 		player.subscribe((e) => {
 			if (e.paused !== isPaused) {
 				isPaused = e.paused;
