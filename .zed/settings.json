@@ -5,7 +5,7 @@
 {
 	"languages": {
 		"TypeScript": {
-			"language_servers": ["effect-tsgo"]
+			"language_servers": ["effect-tsgo", "eslint"]
 		}
 	}
 }

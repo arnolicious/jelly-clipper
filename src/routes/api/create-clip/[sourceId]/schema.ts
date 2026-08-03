@@ -10,9 +10,7 @@ export const createClipBodySchema = z.object({
 	}),
 	subtitleTrack: z
 		.object({
-			fileContent: z.string(),
-			language: z.string(),
-			title: z.string()
+			index: z.number()
 		})
 		.optional()
 });

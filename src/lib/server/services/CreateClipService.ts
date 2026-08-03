@@ -4,6 +4,7 @@ import { UserSession, NoCurrentUserError } from './UserSession';
 import { clips } from '../db/schema';
 import { AssetService } from './AssetService';
 import { AvError, AVService, SecondsSchema } from './AVService';
+import { JellyfinApi } from './JellyfinService';
 
 export class CreateClipService extends Context.Tag('CreateClipService')<
 	CreateClipService,
@@ -20,6 +21,7 @@ export class CreateClipService extends Context.Tag('CreateClipService')<
 			const currentUser = yield* UserSession;
 			const assetService = yield* AssetService;
 			const av = yield* AVService;
+			const jellyfinApi = yield* JellyfinApi;
 
 			return CreateClipService.of({
 				createClip: Effect.fn('CreateClipService.createClip')(function* (params: CreateClipBody) {
@@ -48,7 +50,35 @@ export class CreateClipService extends Context.Tag('CreateClipService')<
 						return yield* new ClipNotCreated();
 					}
 
-					const subtitle = params.subtitleTrack;
+					const subtitle = yield* Effect.gen(function* () {
+						if (!params.subtitleTrack) {
+							return undefined;
+						}
+
+						const clipInfo = yield* jellyfinApi
+							.getClipInfo(params.sourceInfo.sourceId)
+							.pipe(Effect.mapError(() => new ClipNotCreated()));
+						const mediaSource = clipInfo.info.MediaSources?.[0];
+
+						if (!mediaSource) {
+							return yield* new ClipNotCreated();
+						}
+
+						const subtitleTracks = yield* jellyfinApi
+							.getSubtitleTracks(params.sourceInfo.sourceId, mediaSource)
+							.pipe(Effect.mapError(() => new ClipNotCreated()));
+
+						const track = subtitleTracks.find((track) => track.index === params.subtitleTrack?.index);
+						if (!track) {
+							return yield* new ClipNotCreated();
+						}
+
+						return {
+							fileContent: SrtStringContentSchema.make(track.subtitleFile),
+							language: track.language,
+							title: track.title
+						};
+					});
 
 					// Load media file from ASSETS_ORIGINALS_DIR/:sourceId.mp4
 					const sourceUri = `${assetService.ORIGINALS_DIR}/${params.sourceInfo.sourceId}.mp4`;
@@ -89,6 +119,10 @@ export const SubtitleTrackSchema = Schema.Struct({
 
 export type SubtitleTrack = typeof SubtitleTrackSchema.Type;
 
+const SubtitleTrackReferenceSchema = Schema.Struct({
+	index: Schema.Number
+});
+
 export const CreateClipBodySchema = Schema.Struct({
 	start: SecondsSchema,
 	end: SecondsSchema,
@@ -98,7 +132,7 @@ export const CreateClipBodySchema = Schema.Struct({
 		sourceTitle: Schema.String,
 		sourceType: Schema.Union(Schema.Literal('movie'), Schema.Literal('show'))
 	}),
-	subtitleTrack: Schema.optional(SubtitleTrackSchema)
+	subtitleTrack: Schema.optional(SubtitleTrackReferenceSchema)
 }).annotations({ identifier: 'CreateClipBody' });
 
 export type CreateClipBody = typeof CreateClipBodySchema.Type;

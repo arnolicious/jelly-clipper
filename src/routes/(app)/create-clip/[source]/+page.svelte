@@ -65,7 +65,9 @@
 	});
 
 	function formatProgress(progress: DownloadProgressEvent | null | undefined) {
-		if (!progress) return '0% (0/0 MB)';
+		if (!progress) {
+			return '0% (0/0 MB)';
+		}
 
 		return `${progress.progressPercentage}% (${(progress.downloadedBytes / 1000000).toFixed(2)}/${(
 			progress.totalSizeBytes / 1000000

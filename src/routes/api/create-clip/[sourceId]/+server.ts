@@ -13,6 +13,7 @@ const createClipEffect = Effect.fn('createClipEffect')(function* (body: unknown)
 	return yield* createClipService.createClip(parsedBody);
 });
 
+// @effect-diagnostics-next-line asyncFunction:off
 export const POST: RequestHandler = async ({ params, request, cookies }) => {
 	const body = await request.json();
 	// Add sourceId

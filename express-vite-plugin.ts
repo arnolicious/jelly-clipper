@@ -1,11 +1,15 @@
+/** @effect-diagnostics asyncFunction:off */
 // https://github.com/sveltejs/kit/discussions/10162#discussioncomment-6401160
 
 import express from 'express';
+// @effect-diagnostics-next-line nodeBuiltinImport:off
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { Plugin, ViteDevServer } from 'vite';
 
 function getSessionIdFromCookieHeader(cookieHeader: string | undefined): string | undefined {
-	if (!cookieHeader) return undefined;
+	if (!cookieHeader) {
+		return undefined;
+	}
 	const match = cookieHeader.match(/(?:^|;\s*)sessionid=([^;]*)/);
 	return match?.[1];
 }
