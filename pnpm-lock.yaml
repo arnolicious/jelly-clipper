@@ -42,7 +42,7 @@ importers:
         specifier: ^4.1.0
         version: 4.1.0
       drizzle-orm:
-        specifier: ^0.45.1
+        specifier: ^0.45.2
         version: 0.45.2(@libsql/client@0.15.15)
       effect:
         specifier: ^3.19.12
