@@ -8,12 +8,7 @@ import type { JellyfinApi } from './services/JellyfinService';
 
 export type ActionResponse = Redirect | OkAction<SuperValidated<Record<string, unknown>>>;
 export type ActionResponseError =
-	| BadRequest
-	| Redirect
-	| Forbidden
-	| ServerError
-	| FormValidationError
-	| CustomInputError<Record<string, unknown>>;
+	BadRequest | Redirect | Forbidden | ServerError | FormValidationError | CustomInputError<Record<string, unknown>>;
 
 export type LoaderResponse<T> = Redirect | OkLoader<T>;
 export type LoaderResponseError =
