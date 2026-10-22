@@ -1,4 +1,4 @@
-FROM node:25.2-alpine AS base
+FROM node:25.9.0-alpine AS base
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ FROM base AS production-dependencies
 
 RUN pnpm install --frozen-lockfile --prod
 
-FROM node:25.2-alpine AS runtime
+FROM node:25.9.0-alpine AS runtime
 
 # libass requires Fontconfig and installed fonts to burn subtitles into clips.
 RUN apk add --no-cache ffmpeg fontconfig font-dejavu && fc-cache -f
