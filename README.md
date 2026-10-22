@@ -17,7 +17,7 @@ Jelly-Clipper is an open-source web application that allows Jellyfin users to ea
 ## 📸 Screenshots
 
 <p float="left">
-  
+
   <img src="https://github.com/user-attachments/assets/497fee97-571d-4181-a2a6-64092bba9174" width="320" />
   <img src="https://github.com/user-attachments/assets/8aa52143-732d-417e-bcea-f99c11a8b447" width="320" /> 
   <img src="https://github.com/user-attachments/assets/21ff1121-516c-43ee-a14e-26039d05e2de" width="320" />
