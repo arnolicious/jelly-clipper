@@ -163,7 +163,7 @@ importers:
         specifier: 8.71.2
         version: 8.71.2(eslint@10.13.0(jiti@1.21.7))(typescript@6.0.3)
       vite:
-        specifier: ^7.3.6
+        specifier: ^7.3.7
         version: 7.3.7(@types/node@25.0.0)(jiti@1.21.7)(tsx@4.22.0)
       zod:
         specifier: ^4.6.7
