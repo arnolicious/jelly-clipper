@@ -1,10 +1,10 @@
-FROM node:25.9.0-alpine AS base
+FROM node:26.12.1-alpine AS base
 
 WORKDIR /app
 
 ENV DATABASE_URL=db/jelly-clipper.db
 
-RUN npm install -g pnpm@latest-10
+RUN npm install -g pnpm@latest-11
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 
@@ -22,7 +22,7 @@ FROM base AS production-dependencies
 
 RUN pnpm install --frozen-lockfile --prod
 
-FROM node:25.9.0-alpine AS runtime
+FROM node:26.12.1-alpine AS runtime
 
 # libass requires Fontconfig and installed fonts to burn subtitles into clips.
 RUN apk add --no-cache ffmpeg fontconfig font-dejavu && fc-cache -f
