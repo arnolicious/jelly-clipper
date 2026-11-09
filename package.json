@@ -42,7 +42,7 @@
 		"mode-watcher": "^1.1.0",
 		"prettier": "^3.9.10",
 		"prettier-plugin-svelte": "^3.5.2",
-		"svelte": "^5.57.2",
+		"svelte": "^5.57.3",
 		"svelte-check": "^4.7.7",
 		"svelte-sonner": "^1.2.1",
 		"sveltekit-sse": "^0.15.1",
